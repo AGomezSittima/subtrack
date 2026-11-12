@@ -1,0 +1,57 @@
+[project]
+name = "subtrack"
+version = "0.1.0"
+description = "Subtrack backend (FastAPI)"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "fastapi==0.162.5",
+    "pydantic==2.14.3",
+    "pydantic-settings==2.16.2",
+    "uvicorn==0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2==2.16.0",
+    "mypy==2.4.1",
+    "pytest==9.2.0",
+    "ruff==0.17.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.13,<0.12"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "PT", "S", "ANN", "RET",
+  "PL", "PTH", "TID",
+  "DTZ", # no naive datetimes or direct now(): time comes from the clock module
+  "T20", # no print
+  "LOG", "G",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004"]
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+xfail_strict = true
