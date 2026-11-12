@@ -1,0 +1,14 @@
+{
+  "health": {
+    "title": "Subtrack",
+    "loading": "Comprobando el backend…",
+    "error": "No se puede conectar con el backend.",
+    "connected": "Conectado al backend {{backend}}.",
+    "version": "Versión {{version}}",
+    "footer": "Backend: {{backend}}",
+    "backendName": {
+      "fastapi": "FastAPI",
+      "spring": "Spring Boot"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "health": {
+    "title": "Subtrack",
+    "loading": "Checking the backend…",
+    "error": "The backend is not reachable.",
+    "connected": "Connected to the {{backend}} backend.",
+    "version": "Version {{version}}",
+    "footer": "Backend: {{backend}}",
+    "backendName": {
+      "fastapi": "FastAPI",
+      "spring": "Spring Boot"
+    }
+  }
+}

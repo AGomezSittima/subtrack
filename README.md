@@ -13,7 +13,7 @@ A local, single-user subscription tracker. It's also a learning project: one Rea
 | ---------------- | ----------------- | ------------------------------------------------- |
 | Docker + Compose | Compose v2+       | runs the stack                                    |
 | Node.js          | 26 LTS (`.nvmrc`) |                                                   |
-| pnpm             | 12.15.0           | pinned in `package.json` (`corepack enable`)      |
+| pnpm             | 12.15.0           | pinned in `package.json` (`packageManager`)       |
 | uv               | 0.11+             | installs Python 3.14 itself                       |
 | JDK              | 25 (Temurin)      | Gradle runs through `./gradlew`; no global Gradle |
 | just             | 1.59+             | `uv tool install rust-just`                       |
