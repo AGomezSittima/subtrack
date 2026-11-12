@@ -23,7 +23,7 @@ Full detail: `docs/standards.md` (TypeScript and React, Tailwind CSS and shadcn/
 ## Data and forms
 - Server state only in TanStack Query; never copy it into local state or a store.
 - Components never call `fetch`; use feature hooks (`useSubscriptions()`).
-- Search params validated with Zod; loaders prefetch with `queryClient.ensureQueryData`.
+- Search params validated with Zod; loaders prefetch with `queryClient.query({ ...options, staleTime: 'static' })` (`ensureQueryData` is deprecated).
 - Forms: TanStack Form + Zod schemas (Standard Schema, no adapter).
 - Every async view handles loading, empty and error states.
 - On any 401, clear the whole query cache and go to the lock screen.

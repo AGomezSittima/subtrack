@@ -80,7 +80,7 @@ Rules:
 - Feature folders: `features/subscriptions/{components,hooks,api,schemas}`; shared UI in `components/ui`.
 - Every async view handles loading, empty and error states.
 - Accessibility: semantic elements first, every input has a label, everything reachable by keyboard.
-- Routing uses TanStack Router with file-based routes in `src/routes`. Search params are validated with Zod; route loaders prefetch with `queryClient.ensureQueryData` so pages render without loading flashes.
+- Routing uses TanStack Router with file-based routes in `src/routes`. Search params are validated with Zod; route loaders prefetch with `queryClient.query({ ...options, staleTime: 'static' })` (returns cached data or fetches it; replaces the deprecated `ensureQueryData`) so pages render without loading flashes.
 
 **Linting and formatting**
 
