@@ -7,7 +7,21 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [
     // The router plugin must come before the React plugin.
-    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    tanstackRouter({
+      target: "react",
+      autoCodeSplitting: true,
+      // A route's component and its pending/error states load together, in one chunk.
+      codeSplittingOptions: {
+        defaultBehavior: [
+          [
+            "component",
+            "pendingComponent",
+            "errorComponent",
+            "notFoundComponent",
+          ],
+        ],
+      },
+    }),
     react(),
     tailwindcss(),
   ],
