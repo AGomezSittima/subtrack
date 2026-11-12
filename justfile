@@ -53,10 +53,26 @@ fmt:
 test: lint test-unit (test-api "fastapi") (test-api "spring")
 
 # Unit tests of every part
-test-unit:
+test-unit: test-unit-js test-unit-fastapi test-unit-spring
+
+[private]
+test-unit-js:
     pnpm --recursive --if-present run test
+
+[private]
+test-unit-fastapi:
     cd backend-fastapi && uv run --locked pytest
+
+[private]
+test-unit-spring:
     cd backend-spring && ./gradlew --quiet test
+
+# Fail if generated files differ from what the generators produce (used by CI)
+[private]
+check-generated:
+    just gen
+    pnpm --filter @subtrack/frontend run build
+    git diff --exit-code -- contract/generated frontend/src/routeTree.gen.ts
 
 # Shared API suite against one backend (fastapi or spring), in test mode on a fresh database
 test-api profile:

@@ -1,0 +1,51 @@
+# Pushes to main and staging: the full browser suite against both backends.
+name: e2e
+
+on:
+  push:
+    branches: [main, staging]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Git hooks are for local commits only.
+  LEFTHOOK: "0"
+
+jobs:
+  ui-suite:
+    name: UI suite (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [fastapi, spring]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: 1.59.0
+      - run: pnpm install --frozen-lockfile --filter "@subtrack/e2e..."
+      - name: Install Chromium and its system dependencies
+        run: pnpm --filter @subtrack/e2e exec playwright install --with-deps chromium
+      - name: Run the browser suite against a fresh test-mode stack
+        run: just test-e2e-profile ${{ matrix.profile }}
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: ui-report-${{ matrix.profile }}
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
