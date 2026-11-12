@@ -1,0 +1,27 @@
+server:
+  port: 8000
+  shutdown: graceful
+
+spring:
+  application:
+    name: subtrack
+  main:
+    banner-mode: off
+  datasource:
+    # PRAGMAs applied on every connection (docs/sdd.md, Migrations and ownership).
+    url: jdbc:sqlite:${DB_PATH:subs.db}?foreign_keys=on&journal_mode=WAL&busy_timeout=5000
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    open-in-view: false
+    hibernate:
+      # The schema belongs to the Flyway migrations; Hibernate only checks it.
+      ddl-auto: validate
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+  flyway:
+    enabled: false
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+subtrack:
+  version: "@version@"
+  test-mode: ${SUBTRACK_TEST_MODE:false}
