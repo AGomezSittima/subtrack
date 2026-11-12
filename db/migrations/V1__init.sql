@@ -1,0 +1,3 @@
+-- V1: initial schema.
+-- Placeholder: the tables from docs/sdd.md (Database schema) are added in the next step.
+-- Flyway applies this file; backends never create or alter tables.
