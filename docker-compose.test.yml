@@ -1,0 +1,10 @@
+# Test overlay: enables test mode (settable clock, /admin/clock, /admin/reset).
+# Used by `just test-api` and `just test-e2e`, never for everyday use.
+services:
+  api-fastapi:
+    environment:
+      SUBTRACK_TEST_MODE: "true"
+
+  api-spring:
+    environment:
+      SUBTRACK_TEST_MODE: "true"
