@@ -1,0 +1,14 @@
+packages:
+  - frontend
+  - e2e
+  - contract
+
+# Dependencies allowed to run install scripts (pnpm blocks all others).
+allowBuilds:
+  lefthook: true
+
+# openapi-typescript 7.x declares `typescript: ^5.x` but generates correctly with
+# TypeScript 6.0, which the rest of the workspace is pinned to (docs/sdd.md, Versions).
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: "6"

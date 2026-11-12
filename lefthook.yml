@@ -1,0 +1,16 @@
+# Pre-commit hooks: format and lint only the staged files of each part.
+pre-commit:
+  commands:
+    js:
+      glob: "*.{js,mjs,cjs,ts,tsx,json,css,md,yaml,yml}"
+      run: pnpm exec lint-staged
+    python:
+      root: backend-fastapi/
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files} && uv run ruff format {staged_files}
+      stage_fixed: true
+    java:
+      root: backend-spring/
+      glob: "*.{java,kts}"
+      run: ./gradlew --quiet spotlessApply
+      stage_fixed: true
