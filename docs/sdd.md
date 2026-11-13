@@ -49,6 +49,9 @@ Chosen on 2026-11-12: latest stable versions that are compatible with each other
 GitHub Actions, two workflows:
 
 - **`ci.yml`** on every push and pull request: format, lint and type checks for the parts whose paths changed, then the API suite against both Compose profiles (fastapi, spring) on GitHub-hosted Linux runners.
+  - A branch push compares the whole branch with main to decide which parts changed. On main, every part runs. Changes to `ci.yml` or the `justfile` re-run every part.
+  - A pull request from a branch of this repository is already covered by the push run of its head commit, so its `pull_request` run is skipped. Pull requests from forks get a full run.
+  - If the API suite fails, the job log shows the test stack's container status and logs.
 - **`e2e.yml`** on pushes to `main` and the staging branch: the full Playwright browser suite against both profiles.
 
 Dependencies are updated manually while implementing; no update bot.
