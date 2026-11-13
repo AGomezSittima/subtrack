@@ -1,9 +1,11 @@
 # Pushes to main and staging: the full browser suite against both backends.
+# Also runnable by hand on any branch (Actions → e2e → Run workflow), to check it before merging.
 name: e2e
 
 on:
   push:
     branches: [main, staging]
+  workflow_dispatch:
 
 permissions:
   contents: read

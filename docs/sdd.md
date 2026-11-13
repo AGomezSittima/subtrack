@@ -52,7 +52,7 @@ GitHub Actions, two workflows:
   - A branch push compares the whole branch with main to decide which parts changed. On main, every part runs. Changes to `ci.yml` or the `justfile` re-run every part.
   - A pull request from a branch of this repository is already covered by the push run of its head commit, so its `pull_request` run is skipped. Pull requests from forks get a full run.
   - If the API suite fails, the job log shows the test stack's container status and logs.
-- **`e2e.yml`** on pushes to `main` and the staging branch: the full Playwright browser suite against both profiles.
+- **`e2e.yml`** on pushes to `main` and the staging branch: the full Playwright browser suite against both profiles. It can also be started by hand on any branch (`workflow_dispatch`), to run the browser suite before merging.
 
 Dependencies are updated manually while implementing; no update bot.
 
