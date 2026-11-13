@@ -46,7 +46,7 @@ Both backends use the same module names: `api`, `service`, `billing`, `repositor
 
 All commands go through the root `justfile`. Prefer these over calling tools directly.
 
-- `just up fastapi` / `just up spring` — start the stack with one backend (http://127.0.0.1:8080)
+- `just up fastapi` / `just up spring` — start the stack with one backend (http://127.0.0.1:8080, or `SUBTRACK_PORT`)
 - `just down` — stop the stack (data stays on the volume)
 - `just test` — all fast checks: static analysis, unit tests, API suite against both backends
 - `just test-e2e` — full browser suite against both backends

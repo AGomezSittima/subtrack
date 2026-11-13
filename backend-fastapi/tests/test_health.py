@@ -15,3 +15,9 @@ def test_health_reports_fastapi_backend() -> None:
         "version": "0.1.0",
         "last_scheduler_run": None,
     }
+
+
+def test_routes_are_only_served_under_the_api_prefix() -> None:
+    client = TestClient(create_app())
+
+    assert client.get("/health").status_code == 404

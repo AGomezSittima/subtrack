@@ -68,7 +68,7 @@ The browser reaches only nginx; the active backend and the migration job share t
 
 | Service | Profiles | Role | Published port |
 | --- | --- | --- | --- |
-| web | fastapi, spring | nginx serving the React + Vite build, proxies `/api` to `api` | 127.0.0.1:8080 |
+| web | fastapi, spring | nginx serving the React + Vite build, proxies `/api` to `api` | 127.0.0.1:8080 (`SUBTRACK_PORT`) |
 | migrate | fastapi, spring | Flyway one-shot job applying `db/migrations/*.sql`, then exits | none |
 | api-fastapi | fastapi | FastAPI backend, network alias `api` | none |
 | api-spring | spring | Spring Boot backend, network alias `api` | none |
@@ -118,13 +118,13 @@ services:
     # (lockfile and the @subtrack/contract types).
     build: { context: ., dockerfile: frontend/Dockerfile }
     profiles: [fastapi, spring]
-    ports: ["127.0.0.1:8080:80"]
+    ports: ["127.0.0.1:${SUBTRACK_PORT:-8080}:80"]
 
 volumes:
   subs-data:
 ```
 
-Both backends listen on port 8000 inside the network and serve everything under `/api/v1`. The test overlay `docker-compose.test.yml` only sets `SUBTRACK_TEST_MODE=true` on both backends.
+Both backends listen on port 8000 inside the network and serve everything under `/api/v1`. The host port is optional configuration: `SUBTRACK_PORT` (default 8080) from the shell or a root `.env` (`.env.example` documents it). The test overlay `docker-compose.test.yml` only sets `SUBTRACK_TEST_MODE=true` on both backends.
 
 ### Everyday use
 

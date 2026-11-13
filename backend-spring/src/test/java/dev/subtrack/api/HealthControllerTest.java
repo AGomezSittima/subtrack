@@ -40,4 +40,9 @@ class HealthControllerTest {
                     """,
                     JsonCompareMode.STRICT));
   }
+
+  @Test
+  void controllersAreOnlyServedUnderTheApiPrefix() throws Exception {
+    mvc.perform(get("/health")).andExpect(status().isNotFound());
+  }
 }

@@ -20,6 +20,6 @@ To run against a stack you started yourself (`just up spring`):
 EXPECTED_BACKEND=spring pnpm exec playwright test --project api
 ```
 
-Environment: `BASE_URL` (default `http://127.0.0.1:8080`), `EXPECTED_BACKEND` (`fastapi` or `spring`; unset accepts either). Only `support/env.ts` reads them.
+Environment: `BASE_URL` (default `http://127.0.0.1:${SUBTRACK_PORT:-8080}`), `EXPECTED_BACKEND` (`fastapi` or `spring`; unset accepts either). Only `support/env.ts` reads them.
 
 Rules: selectors use roles and labels (enforced by `playwright/no-raw-locators`), each test starts from a fresh database (`POST /admin/reset`, once it exists), and no test reads the real clock.
