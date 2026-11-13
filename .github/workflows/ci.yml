@@ -20,6 +20,10 @@ env:
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # On pull requests paths-filter lists the changed files through the REST API.
+      pull-requests: read
     outputs:
       js: ${{ steps.filter.outputs.js }}
       fastapi: ${{ steps.filter.outputs.fastapi }}
@@ -73,7 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv publishes no floating major tag (`@v10` does not resolve); pin the release commit.
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: 0.11.13
           working-directory: backend-fastapi
