@@ -1,0 +1,18 @@
+packages:
+  - frontend
+  - e2e
+  - contract
+
+# Dependencies allowed to run install scripts (pnpm blocks all others).
+allowBuilds:
+  lefthook: true
+
+# Peer ranges that lag behind but were verified to work:
+# - openapi-typescript 7.x declares `typescript: ^5.x`; it generates correctly with TypeScript
+#   6.0, which the workspace is pinned to (docs/sdd.md, Versions).
+# - eslint-plugin-jsx-a11y 6.10.2 (latest) declares ESLint up to 9; its rules run on ESLint 10,
+#   and the ESLint 9 line is deprecated.
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: "6"
+    eslint-plugin-jsx-a11y>eslint: "10"

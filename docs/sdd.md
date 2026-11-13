@@ -74,12 +74,18 @@ Both backends answer on the alias `api`, so the nginx config never changes. ngin
 
 ### docker-compose.yml (sketch)
 
+The real file is `docker-compose.yml` at the repository root; it also adds healthchecks (so `docker compose up --wait` works) and `restart: unless-stopped`.
+
 ```yaml
 services:
   migrate:
-    image: flyway/flyway        # pin a version
+    image: flyway/flyway:13.12.2
     profiles: [fastapi, spring]
-    command: -url=jdbc:sqlite:/data/subs.db -locations=filesystem:/flyway/sql migrate
+    # Flyway runs as root; the data folder is then handed to UID 10001, the non-root
+    # user both backend images run as, so they can write the database and its WAL files.
+    entrypoint: ["sh", "-c"]
+    command:
+      - flyway -url=jdbc:sqlite:/data/subs.db -locations=filesystem:/flyway/sql migrate && chown -R 10001:10001 /data
     volumes:
       - subs-data:/data
       - ./db/migrations:/flyway/sql:ro
@@ -105,13 +111,17 @@ services:
       default: { aliases: [api] }
 
   web:
-    build: ./frontend
+    # Built from the repository root: the frontend build needs the pnpm workspace
+    # (lockfile and the @subtrack/contract types).
+    build: { context: ., dockerfile: frontend/Dockerfile }
     profiles: [fastapi, spring]
     ports: ["127.0.0.1:8080:80"]
 
 volumes:
   subs-data:
 ```
+
+Both backends listen on port 8000 inside the network and serve everything under `/api/v1`. The test overlay `docker-compose.test.yml` only sets `SUBTRACK_TEST_MODE=true` on both backends.
 
 ### Everyday use
 
@@ -262,7 +272,7 @@ REST + JSON under `/api/v1`, written first in `contract/openapi.yaml`. Both back
 | POST | /admin/run-scheduler | Run the daily job now (dev and tests) |
 | GET | /export | `?format=json` or `csv` |
 | POST | /import | JSON from /export |
-| GET | /health | `{status, backend: "fastapi" or "spring", version}` |
+| GET | /health | `{status, backend: "fastapi" or "spring", version, last_scheduler_run}` (`last_scheduler_run` is null until the job has run) |
 | POST | /admin/clock | Test mode only: set today's date; 404 otherwise |
 | POST | /subscriptions/{id}/archive | Archive (FR-28); /unarchive restores it; GET /subscriptions?archived=true lists them |
 | POST | /admin/reset | Test mode only: empty all tables and re-seed the catalogue; 404 otherwise |

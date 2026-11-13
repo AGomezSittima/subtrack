@@ -1,0 +1,80 @@
+# Subtrack stack (docs/sdd.md, Architecture and deployment).
+# Start with one backend: `just up fastapi` or `just up spring`. Only `web` publishes a port.
+
+x-backend: &backend
+  environment:
+    DB_PATH: /data/subs.db
+    TZ: Europe/Madrid
+  volumes:
+    - subs-data:/data
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+  networks:
+    default:
+      aliases: [api]
+  restart: unless-stopped
+
+services:
+  migrate:
+    image: flyway/flyway:13.12.2
+    profiles: [fastapi, spring]
+    # Flyway runs as root; afterwards the data folder is handed to UID 10001, the non-root user
+    # both backend images run as, so the backend can write the database and its WAL files.
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        flyway -url=jdbc:sqlite:/data/subs.db -locations=filesystem:/flyway/sql migrate
+        && chown -R 10001:10001 /data
+    volumes:
+      - subs-data:/data
+      - ./db/migrations:/flyway/sql:ro
+
+  api-fastapi:
+    <<: *backend
+    build: ./backend-fastapi
+    profiles: [fastapi]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+      start_interval: 1s
+
+  api-spring:
+    <<: *backend
+    build: ./backend-spring
+    profiles: [spring]
+    healthcheck:
+      # The JRE image has no curl or wget; bash's /dev/tcp is enough for one request.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8000
+          && printf 'GET /api/v1/health HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+          && head -n 1 <&3 | grep -q ' 200 '
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+      start_interval: 1s
+
+  web:
+    build:
+      # The frontend build needs the workspace root (lockfile, @subtrack/contract).
+      context: .
+      dockerfile: frontend/Dockerfile
+    profiles: [fastapi, spring]
+    ports:
+      - "127.0.0.1:8080:80"
+    restart: unless-stopped
+
+volumes:
+  subs-data:

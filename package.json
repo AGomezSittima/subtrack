@@ -1,0 +1,33 @@
+{
+  "name": "subtrack",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=26 <27"
+  },
+  "scripts": {
+    "prepare": "lefthook install",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-tailwindcss"
+    ],
+    "tailwindStylesheet": "./frontend/src/styles/global.css",
+    "tailwindFunctions": [
+      "cn",
+      "cva"
+    ]
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,json,md,yaml,yml}": "prettier --write"
+  },
+  "devDependencies": {
+    "lefthook": "2.2.2",
+    "lint-staged": "17.6.0",
+    "prettier": "3.10.0",
+    "prettier-plugin-tailwindcss": "0.8.1"
+  }
+}

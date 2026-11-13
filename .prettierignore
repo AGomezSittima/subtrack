@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+contract/generated/
+frontend/src/routeTree.gen.ts
+backend-fastapi/
+backend-spring/
+db/
+docs/
+CLAUDE.md
+.claude/

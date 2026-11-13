@@ -1,0 +1,21 @@
+[versions]
+spring-boot = "4.1.1"
+spotless = "8.11.0"
+google-java-format = "2.0.0"
+# docs/sdd.md asks for the latest sqlite-jdbc; the Boot 4.1.1 BOM manages 3.53.2.1.
+sqlite-jdbc = "3.54.1.0"
+
+[libraries]
+# Versions without `version.ref` come from the Spring Boot BOM.
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+hibernate-community-dialects = { module = "org.hibernate.orm:hibernate-community-dialects" }
+jspecify = { module = "org.jspecify:jspecify" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

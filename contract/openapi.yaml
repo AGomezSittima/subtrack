@@ -1,0 +1,49 @@
+openapi: 3.1.1
+info:
+  title: Subtrack API
+  version: 0.1.0
+  description: |
+    Contract shared by the FastAPI and Spring Boot backends and the frontend.
+    Money is integer cents, dates are `YYYY-MM-DD`, timestamps are UTC ISO 8601
+    with milliseconds and `Z`. Errors are RFC 9457 problem JSON.
+servers:
+  - url: /api/v1
+tags:
+  - name: health
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [health]
+      summary: Liveness and backend identity
+      description: Public endpoint. Tells the frontend which backend implementation is answering.
+      security: []
+      responses:
+        "200":
+          description: The backend is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+components:
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, backend, version, last_scheduler_run]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        backend:
+          type: string
+          enum: [fastapi, spring]
+        version:
+          type: string
+          description: Application version.
+          examples: ["0.1.0"]
+        last_scheduler_run:
+          description: When the daily job last finished (UTC), or null if it has never run.
+          type: [string, "null"]
+          format: date-time
+          examples: ["2026-11-12T18:10:00.000Z"]
