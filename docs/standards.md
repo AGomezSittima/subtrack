@@ -93,7 +93,7 @@ ESLint finds problems; Prettier owns formatting. They never overlap: `eslint-con
 | Unused imports | `eslint-plugin-unused-imports`: removed automatically on `--fix`; unused variables are errors (prefix `_` to keep one on purpose) |
 | Prettier | Defaults plus `prettier-plugin-tailwindcss` for class order |
 
-- Manually format in the editor; `lint-staged` runs `eslint --fix` and `prettier --write` on staged files before each commit.
+- Manually format in the editor; before each commit, Lefthook runs `lint-staged`, which runs `eslint --fix` and `prettier --write` on the staged files.
 - CI runs `eslint --max-warnings 0` and `prettier --check`; any warning or formatting diff fails the build.
 
 **Localization**
@@ -223,7 +223,7 @@ One repository, `subtrack`, holds the contract, migrations, frontend, both backe
 - **Commits**: Conventional Commits with a scope per area: `feat(frontend):`, `fix(spring):`, `feat(fastapi):`, `chore(contract):`, `chore(db):`, `docs:`.
 - **Branches**: short-lived branches off `main`; `main` always builds and passes tests.
 - **One entry point**: a root `justfile` (or `Makefile`) with the same verbs for every part: `just test`, `just lint`, `just up fastapi`, `just up spring`.
-- **Pre-commit hooks** run formatters and linters for the files touched.
+- **Pre-commit hooks**: Lefthook (`lefthook.yml`, installed by `pnpm install`) runs the formatters and linters for the staged files of each part: `lint-staged` (ESLint and Prettier) for TypeScript, JSON, Markdown and YAML, Ruff for Python, Spotless for Java. CI sets `LEFTHOOK=0`.
 - **CI** runs only the jobs for changed paths, plus the full contract and end-to-end suite on `main`.
 - **Decisions** that change these standards or the SDD are recorded as short ADRs in `docs/adr/`.
 - **Versions**: the latest stable versions that are compatible with each other, pinned in lockfiles; upgrades happen in their own PRs.

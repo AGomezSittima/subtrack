@@ -21,7 +21,7 @@ One React + Vite frontend, two interchangeable backends behind one OpenAPI contr
 | Database | SQLite file `subs.db` on a named volume | NFR-2, NFR-3 |
 | Schema | Plain SQL migrations applied by a Flyway one-shot container | NFR-6 |
 | Deployment | Docker Compose, one profile per backend | NFR-1, NFR-4 |
-| Scheduling | In-process daily job in the active backend, with catch-up | BR-18 to BR-20 |
+| Scheduling | In-process job in the active backend, at startup and then hourly, with catch-up | BR-18 to BR-20 |
 | Logos | Logo.dev image URLs by domain, loaded by the browser | FR-2 |
 | Business rules | Shared JSON test cases run by both backends | NFR-6 |
 | UI components | shadcn/ui on Base UI, owned in the repo, with a custom Subtrack theme | NFR-5 |
@@ -52,7 +52,7 @@ GitHub Actions, two workflows:
   - A branch push compares the whole branch with main to decide which parts changed. On main, every part runs. Changes to `ci.yml` or the `justfile` re-run every part.
   - A pull request from a branch of this repository is already covered by the push run of its head commit, so its `pull_request` run is skipped. Pull requests from forks get a full run.
   - If the API suite fails, the job log shows the test stack's container status and logs.
-- **`e2e.yml`** on pushes to `main` and the staging branch: the full Playwright browser suite against both profiles.
+- **`e2e.yml`** on pushes to `main` and the staging branch: the full Playwright browser suite against both profiles. It can also be started by hand on any branch (`workflow_dispatch`), to run the browser suite before merging.
 
 Dependencies are updated manually while implementing; no update bot.
 
@@ -272,7 +272,7 @@ REST + JSON under `/api/v1`, written first in `contract/openapi.yaml`. Both back
 | GET | /stats/monthly | `?from=&to=`: actual vs expected per month |
 | GET | /settings | All settings |
 | PUT | /settings | Update settings |
-| POST | /admin/run-scheduler | Run the daily job now (dev and tests) |
+| POST | /admin/run-scheduler | Run the scheduler job now (dev and tests) |
 | GET | /export | `?format=json` or `csv` |
 | POST | /import | JSON from /export |
 | GET | /health | `{status, backend: "fastapi" or "spring", version, last_scheduler_run}` (`last_scheduler_run` is null until the job has run) |
@@ -326,7 +326,7 @@ Time is injected everywhere (a `Clock` in Java, a `today()` provider in Python),
 | SQLite driver | stdlib `sqlite3` | `sqlite-jdbc` + community dialect |
 | Errors | custom exception handlers → problem JSON | built-in `ProblemDetail` |
 | Startup hook | lifespan handler | `ApplicationReadyEvent` listener |
-| Daily job | APScheduler cron trigger | `@Scheduled(cron, zone)` |
+| Scheduler job (hourly) | APScheduler cron trigger | `@Scheduled(cron, zone)` |
 | Settings | pydantic-settings, env vars | `application.yml`, env vars |
 | Tests | pytest | JUnit 5 + AssertJ |
 
