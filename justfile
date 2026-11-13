@@ -95,7 +95,17 @@ _with-test-stack profile project:
     set -euo pipefail
     just _check-profile {{ profile }}
     compose="{{ test_compose }} --profile {{ profile }}"
-    trap '$compose down --volumes --remove-orphans' EXIT
+    # On failure (including a stack that never gets healthy), show why before tearing it down.
+    cleanup() {
+        local status=$?
+        if (( status != 0 )); then
+            $compose ps --all
+            $compose logs --no-color --timestamps
+        fi
+        $compose down --volumes --remove-orphans
+        exit "$status"
+    }
+    trap cleanup EXIT
     $compose up -d --build --wait
     EXPECTED_BACKEND={{ profile }} pnpm --filter @subtrack/e2e exec playwright test --project {{ project }}
 

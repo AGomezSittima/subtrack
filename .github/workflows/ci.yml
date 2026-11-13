@@ -1,5 +1,7 @@
 # Every push and pull request: static checks and unit tests for the parts whose paths changed
 # (all of them on main), then the shared API suite against both backends.
+# A pull request from a branch of this repository is already covered by the push run of the same
+# commit, so its pull_request run is skipped; pull requests from forks get a full run.
 name: ci
 
 on:
@@ -19,7 +21,9 @@ env:
 
 jobs:
   changes:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       # On pull requests paths-filter lists the changed files through the REST API.
@@ -33,8 +37,18 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
+          # On a branch push, compare with main (the whole branch), not only with the previous
+          # push; otherwise a job that failed earlier is skipped once later pushes avoid its files.
+          # On main itself paths-filter compares with the commit before the push.
+          base: ${{ github.event.repository.default_branch }}
           filters: |
+            # Changes to how a part is checked also re-run that part.
+            shared: &shared
+              - ".github/workflows/ci.yml"
+              - "justfile"
             js:
+              - *shared
+              - ".nvmrc"
               - "frontend/**"
               - "e2e/**"
               - "contract/**"
@@ -44,8 +58,10 @@ jobs:
               - ".prettierignore"
               - "**/*.{md,yml,yaml,json}"
             fastapi:
+              - *shared
               - "backend-fastapi/**"
             spring:
+              - *shared
               - "backend-spring/**"
 
   js:
@@ -53,6 +69,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.js == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -75,6 +92,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.fastapi == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       # setup-uv publishes no floating major tag (`@v10` does not resolve); pin the release commit.
@@ -95,6 +113,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.spring == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -103,6 +122,9 @@ jobs:
           java-version: "25"
       # Also validates the Gradle wrapper checksum.
       - uses: gradle/actions/setup-gradle@v6
+        with:
+          # The default (enhanced) provider is proprietary; basic is the MIT one on actions/cache.
+          cache-provider: basic
       - uses: extractions/setup-just@v4
         with:
           just-version: 1.59.0
@@ -113,7 +135,9 @@ jobs:
 
   api-suite:
     name: API suite (${{ matrix.profile }})
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

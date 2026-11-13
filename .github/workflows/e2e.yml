@@ -20,6 +20,7 @@ jobs:
   ui-suite:
     name: UI suite (${{ matrix.profile }})
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
