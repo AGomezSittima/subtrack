@@ -43,7 +43,7 @@ components:
           description: Application version.
           examples: ["0.1.0"]
         last_scheduler_run:
-          description: When the daily job last finished (UTC), or null if it has never run.
+          description: When the scheduler job (run at startup and then hourly) last finished (UTC), or null if it has never run.
           type: [string, "null"]
           format: date-time
           examples: ["2026-11-12T18:10:00.000Z"]

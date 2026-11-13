@@ -40,7 +40,7 @@ export interface components {
             version: string;
             /**
              * Format: date-time
-             * @description When the daily job last finished (UTC), or null if it has never run.
+             * @description When the scheduler job (run at startup and then hourly) last finished (UTC), or null if it has never run.
              * @example 2026-11-12T18:10:00.000Z
              */
             last_scheduler_run: string | null;
