@@ -3,6 +3,9 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Recipes see the same optional .env as Docker Compose (SUBTRACK_PORT; see .env.example).
+set dotenv-load
+
 # Test stacks use their own Compose project, so they never touch the real `subs-data` volume.
 test_compose := "docker compose -p subtrack-test -f docker-compose.yml -f docker-compose.test.yml"
 
@@ -10,10 +13,11 @@ test_compose := "docker compose -p subtrack-test -f docker-compose.yml -f docker
 default:
     @just --list
 
-# Start the stack with one backend (fastapi or spring) on http://127.0.0.1:8080
+# Start the stack with one backend (fastapi or spring) on http://127.0.0.1:8080 (or $SUBTRACK_PORT)
 up profile:
     @just _check-profile {{ profile }}
     docker compose --profile {{ profile }} up -d --build --wait
+    @echo "Subtrack ({{ profile }}) is running at http://127.0.0.1:${SUBTRACK_PORT:-8080}"
 
 # Stop the stack; data stays on the volume
 down:

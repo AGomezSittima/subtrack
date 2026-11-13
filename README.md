@@ -37,7 +37,11 @@ just e2e-setup        # Playwright Chromium for the UI suite
 | `just test-e2e`                      | Browser suite against both backends                                 |
 | `just gen`                           | Regenerate types from `contract/openapi.yaml`                       |
 
-`just test` and `just test-e2e` start their own stack under the Compose project `subtrack-test`, which has its own volume, and remove it afterwards. Stop your own stack first (`just down`), because both use port 8080.
+`just test` and `just test-e2e` start their own stack under the Compose project `subtrack-test`, which has its own volume, and remove it afterwards. Stop your own stack first (`just down`), because both use the same port.
+
+### Port
+
+The app is published on `127.0.0.1:8080`. To use another port, set `SUBTRACK_PORT`, either in the shell or in a `.env` file at the repository root (copy `.env.example`). Docker Compose, the `just` recipes, the Playwright suites and the Vite dev proxy all read it.
 
 ## Layout
 
