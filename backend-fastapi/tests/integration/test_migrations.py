@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from tests.support.migrations import migration_files
+from tests.support.migrations import apply_migrations, connect, migration_files
 
 TS = "2026-11-10T15:18:00.000Z"
 
@@ -180,6 +180,8 @@ def test_a_valid_row_can_be_inserted_in_each_table(migrated_db: sqlite3.Connecti
             cancel_url="https://spotify.com/account",
             notes="Family plan later",
             archived_at="2026-11-20T08:00:00.123Z",
+            resumed_on="2026-05-01",
+            unarchived_on="2026-11-19",
         ),
     )
     insert(migrated_db, "price_history", price_row(sub_id))
@@ -231,6 +233,14 @@ INVALID_ROWS: list[Any] = [
         for value in ["2026-1-31", "2026-02-30", "2026-13-01", "31/01/2026", "2026-01-31T00:00"]
     ],
     pytest.param("subscription", lambda _s: subscription_row(ends_on="2026-04-31"), id="ends_on"),
+    pytest.param(
+        "subscription", lambda _s: subscription_row(resumed_on="2026-06-31"), id="resumed_on"
+    ),
+    pytest.param(
+        "subscription",
+        lambda _s: subscription_row(unarchived_on="2026-11-19T00:00:00.000Z"),
+        id="unarchived_on",
+    ),
     pytest.param("payment", lambda s: payment_row(s, due_date="20260228"), id="due_date"),
     pytest.param("payment", lambda s: paid_payment_row(s, paid_date="2026-2-28"), id="paid_date"),
     pytest.param("price_history", lambda s: price_row(s, effective_from=""), id="effective_from"),
@@ -292,6 +302,9 @@ INVALID_ROWS: list[Any] = [
         "subscription", lambda _s: subscription_row(status="paused"), id="paused-no-paused_at"
     ),
     pytest.param(
+        "subscription", lambda _s: subscription_row(status="trial"), id="trial-no-trial_end_date"
+    ),
+    pytest.param(
         "payment", lambda s: payment_row(s, status="paid", paid_cents=1199), id="paid-no-date"
     ),
     pytest.param(
@@ -309,6 +322,23 @@ def test_invalid_values_are_rejected(
 ) -> None:
     with pytest.raises(sqlite3.IntegrityError):
         insert(migrated_db, table, make_row(subscription_id))
+
+
+def test_br_28_a_subscription_becomes_or_stays_a_trial_only_with_a_trial_end_date(
+    migrated_db: sqlite3.Connection, subscription_id: int
+) -> None:
+    to_trial = "UPDATE subscription SET status = 'trial' WHERE id = ?"
+    with pytest.raises(sqlite3.IntegrityError):
+        migrated_db.execute(to_trial, (subscription_id,))
+
+    migrated_db.execute(
+        "UPDATE subscription SET status = 'trial', trial_end_date = '2026-02-14' WHERE id = ?",
+        (subscription_id,),
+    )
+    with pytest.raises(sqlite3.IntegrityError):
+        migrated_db.execute(
+            "UPDATE subscription SET trial_end_date = NULL WHERE id = ?", (subscription_id,)
+        )
 
 
 @pytest.mark.parametrize(
@@ -453,3 +483,67 @@ def test_deleting_a_catalogue_entry_keeps_its_subscriptions(
     assert migrated_db.execute(
         "SELECT catalog_service_id FROM subscription WHERE id = ?", (sub_id,)
     ).fetchall() == [(None,)]
+
+
+def test_v3_keeps_subscriptions_and_their_history(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=2)
+        catalog_id = insert(db, "catalog_service", catalog_row())
+        sub_id = insert(
+            db,
+            "subscription",
+            subscription_row(
+                catalog_service_id=catalog_id,
+                status="trial",
+                trial_end_date="2026-02-14",
+                reminder_days=-1,
+                archived_at="2026-11-20T08:00:00.123Z",
+            ),
+        )
+        insert(db, "price_history", price_row(sub_id))
+        payment_id = insert(db, "payment", paid_payment_row(sub_id))
+        insert(db, "notification", notification_row(sub_id, payment_id=payment_id))
+        before = db.execute("SELECT * FROM subscription").fetchall()
+
+        apply_migrations(db, after=2)
+
+        columns = [row[1] for row in db.execute("PRAGMA table_info(subscription)")]
+        after = db.execute(
+            f"SELECT {', '.join(c for c in columns if c not in ('resumed_on', 'unarchived_on'))}"  # noqa: S608
+            " FROM subscription"
+        ).fetchall()
+        assert after == before
+        assert db.execute("SELECT resumed_on, unarchived_on FROM subscription").fetchall() == [
+            (None, None)
+        ]
+        assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert db.execute(
+            "SELECT 1 FROM sqlite_schema WHERE type = 'index'"
+            " AND name = 'subscription_catalog_service_idx' AND tbl_name = 'subscription'"
+        ).fetchall() == [(1,)]
+
+        db.execute("DELETE FROM subscription WHERE id = ?", (sub_id,))
+        assert count(db, "price_history") == 0
+        assert count(db, "payment") == 0
+        assert db.execute("SELECT subscription_id, payment_id FROM notification").fetchall() == [
+            (None, None)
+        ]
+    finally:
+        db.close()
+
+
+def test_v3_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=2)
+        sub_id = insert(db, "subscription", subscription_row())
+        insert(db, "payment", payment_row(sub_id))
+
+        with pytest.raises(sqlite3.IntegrityError):
+            apply_migrations(db, after=2, foreign_keys=True)
+
+        assert count(db, "payment") == 1
+        assert "resumed_on" not in [row[1] for row in db.execute("PRAGMA table_info(subscription)")]
+    finally:
+        db.close()

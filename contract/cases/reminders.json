@@ -1,0 +1,1657 @@
+{
+  "$schema": "./schema/reminders.schema.json",
+  "description": "Reminder planning: the notifications created for every trigger date from the last run's date to today, both inclusive. Renewal, trial-ending and ending triggers are skipped when their event is before today or their payment is no longer expected; overdue fires once while the payment is expected. The dedupe key uses the trigger date, and a key that already exists creates nothing.",
+  "rules": [
+    "BR-13",
+    "BR-14",
+    "BR-15",
+    "BR-16",
+    "BR-17",
+    "BR-19",
+    "BR-20",
+    "BR-23",
+    "BR-24",
+    "BR-27"
+  ],
+  "cases": [
+    {
+      "id": "renewal-fires-the-default-days-before",
+      "rules": ["BR-13", "BR-24"],
+      "description": "With the default lead time of 3 days, a payment due on 2026-11-24 gets an info renewal notification today, carrying the name, due date and amount.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-24",
+            "expected_cents": 1199,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-24",
+              "amount_cents": 1199
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "override-replaces-the-default-lead-time",
+      "rules": ["BR-13"],
+      "description": "A 5-day override fires today for a payment due on 2026-11-26. Another subscription on the 3-day default, due the same day, is not reminded yet.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": 5
+          },
+          {
+            "id": 2,
+            "name": "Netflix",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-26",
+            "expected_cents": 1199,
+            "status": "expected"
+          },
+          {
+            "id": 20,
+            "subscription_id": 2,
+            "due_date": "2026-11-26",
+            "expected_cents": 1399,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-26",
+              "amount_cents": 1199
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "minus-one-turns-renewal-off",
+      "rules": ["BR-13", "BR-14"],
+      "description": "An override of -1 turns renewal reminders off.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": -1
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-24",
+            "expected_cents": 1199,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "minus-one-keeps-trial-ending-ending-and-overdue",
+      "rules": ["BR-14", "BR-15", "BR-16", "BR-23"],
+      "description": "-1 turns off only renewal reminders: a trial still gets its trial-ending notification, a cancelled subscription its ending notification, and an unpaid payment its overdue notification.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "trial",
+            "archived": false,
+            "reminder_days": -1,
+            "trial_end_date": "2026-11-24"
+          },
+          {
+            "id": 2,
+            "name": "Netflix",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "cancelled",
+            "archived": false,
+            "reminder_days": -1,
+            "ends_on": "2026-11-28"
+          },
+          {
+            "id": 3,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": -1
+          }
+        ],
+        "payments": [
+          {
+            "id": 30,
+            "subscription_id": 3,
+            "due_date": "2026-11-20",
+            "expected_cents": 999,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "trial_ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "trial_ending:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": null,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-24"
+            }
+          },
+          {
+            "type": "ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "ending:2:2026-11-21",
+            "subscription_id": 2,
+            "payment_id": null,
+            "params": {
+              "name": "Netflix",
+              "date": "2026-11-28"
+            }
+          },
+          {
+            "type": "overdue",
+            "severity": "critical",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "overdue:3:2026-11-21",
+            "subscription_id": 3,
+            "payment_id": 30,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-20",
+              "amount_cents": 999
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "lead-time-zero-fires-on-the-due-date",
+      "rules": ["BR-13", "BR-19"],
+      "description": "A lead time of 0 fires on the due date itself; an event today still fires.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": 0
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-21",
+              "amount_cents": 1199
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "trigger-after-today-waits",
+      "rules": ["BR-13"],
+      "description": "A payment due on 2026-11-25 is reminded on 2026-11-22, so nothing fires today.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-25",
+            "expected_cents": 1199,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "eleven-months-is-not-yearly",
+      "rules": ["BR-14"],
+      "description": "Every 11 months is not yearly: the 3-day default applies, so the payment due on 2026-11-24 is reminded today and the one due on 2026-12-05 is not (14 days would have fired it today).",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 11,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 2,
+            "name": "Bitwarden",
+            "interval": {
+              "count": 11,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-24",
+            "expected_cents": 4999,
+            "status": "expected"
+          },
+          {
+            "id": 20,
+            "subscription_id": 2,
+            "due_date": "2026-12-05",
+            "expected_cents": 1000,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-24",
+              "amount_cents": 4999
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "twelve-months-is-yearly",
+      "rules": ["BR-14", "BR-24"],
+      "description": "Every 12 months counts as yearly: a yearly renewal notification fires 14 days before the payment due on 2026-12-05.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 12,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-12-05",
+            "expected_cents": 4999,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "yearly_renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "yearly_renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-12-05",
+              "amount_cents": 4999
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "every-two-years-is-yearly",
+      "rules": ["BR-14"],
+      "description": "Any count of years is yearly or longer.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Cloudflare Domains",
+            "interval": {
+              "count": 2,
+              "unit": "year"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-12-05",
+            "expected_cents": 2000,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "yearly_renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "yearly_renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Cloudflare Domains",
+              "date": "2026-12-05",
+              "amount_cents": 2000
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "fifty-two-weeks-is-not-yearly",
+      "rules": ["BR-14"],
+      "description": "Weeks never count as yearly, even 52 of them: the 3-day default applies, so a payment due on 2026-12-05 is not reminded today.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 52,
+              "unit": "week"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-12-05",
+            "expected_cents": 9999,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "three-hundred-sixty-five-days-is-not-yearly",
+      "rules": ["BR-14"],
+      "description": "Days never count as yearly, even 365 of them: the 3-day default applies, so the payment due on 2026-11-24 gets a plain renewal notification.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 365,
+              "unit": "day"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-24",
+            "expected_cents": 9999,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-24",
+              "amount_cents": 9999
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "override-applies-to-yearly-plans",
+      "rules": ["BR-14"],
+      "description": "A 30-day override replaces the yearly lead time too: a yearly plan due on 2026-12-21 is reminded today.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "year"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": 30
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-12-21",
+            "expected_cents": 4999,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "yearly_renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "yearly_renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-12-21",
+              "amount_cents": 4999
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "minus-one-turns-yearly-renewal-off",
+      "rules": ["BR-14"],
+      "description": "An override of -1 turns yearly renewal reminders off as well.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "year"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": -1
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-12-05",
+            "expected_cents": 4999,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "trial-ending-fires-before-the-trial-end",
+      "rules": ["BR-15", "BR-24"],
+      "description": "A trial ending on 2026-11-24 gets a warning 3 days before, with no payment attached.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "ChatGPT",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "trial",
+            "archived": false,
+            "reminder_days": null,
+            "trial_end_date": "2026-11-24"
+          }
+        ],
+        "payments": [],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "trial_ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "trial_ending:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": null,
+            "params": {
+              "name": "ChatGPT",
+              "date": "2026-11-24"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "trial-ending-only-while-a-trial",
+      "rules": ["BR-15"],
+      "description": "An active subscription that still has a trial end date gets no trial-ending notification.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "ChatGPT",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null,
+            "trial_end_date": "2026-11-24"
+          }
+        ],
+        "payments": [],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "overdue-fires-the-day-after-the-due-date",
+      "rules": ["BR-16", "BR-24"],
+      "description": "A payment due yesterday and still expected is overdue today (critical). One due today is not overdue yet.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 2,
+            "name": "Netflix",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-20",
+            "expected_cents": 1199,
+            "status": "expected"
+          },
+          {
+            "id": 20,
+            "subscription_id": 2,
+            "due_date": "2026-11-21",
+            "expected_cents": 1399,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "overdue",
+            "severity": "critical",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "overdue:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-20",
+              "amount_cents": 1199
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-overdue-for-a-paid-payment",
+      "rules": ["BR-16"],
+      "description": "A payment that was paid is never overdue.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-20",
+            "expected_cents": 1199,
+            "status": "paid"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "both-ending-notifications-across-a-catch-up",
+      "rules": ["BR-17", "BR-19", "BR-23", "BR-24"],
+      "description": "Access ends today and the app last ran 11 days ago. The ending notification 7 days before and the one on the end date are both created: their dedupe keys use different trigger dates.",
+      "input": {
+        "last_run_date": "2026-11-10",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "cancelled",
+            "archived": false,
+            "reminder_days": null,
+            "ends_on": "2026-11-21"
+          }
+        ],
+        "payments": [],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-14",
+            "dedupe_key": "ending:1:2026-11-14",
+            "subscription_id": 1,
+            "payment_id": null,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-21"
+            }
+          },
+          {
+            "type": "ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "ending:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": null,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-21"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "second-ending-notification-on-ends-on",
+      "rules": ["BR-17", "BR-23"],
+      "description": "The first ending notification already exists. On the end date the second one is created, because its key has a different trigger date.",
+      "input": {
+        "last_run_date": "2026-11-14",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "cancelled",
+            "archived": false,
+            "reminder_days": null,
+            "ends_on": "2026-11-21"
+          }
+        ],
+        "payments": [],
+        "existing_dedupe_keys": ["ending:1:2026-11-14"]
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "ending:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": null,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-21"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ending-lead-time-zero-fires-once",
+      "rules": ["BR-17", "BR-23"],
+      "description": "With an ending lead time of 0 both ending triggers fall on the end date and share a key, so there is one notification.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 0
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "cancelled",
+            "archived": false,
+            "reminder_days": null,
+            "ends_on": "2026-11-21"
+          }
+        ],
+        "payments": [],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "ending:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": null,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-21"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-dedupe-key-is-a-no-op",
+      "rules": ["BR-17", "BR-20"],
+      "description": "Running again on the same day: the renewal notification already exists, so nothing is created.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-24",
+            "expected_cents": 1199,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": ["renewal:1:2026-11-21"]
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "catch-up-across-several-missed-days",
+      "rules": ["BR-13", "BR-16", "BR-19"],
+      "description": "The app last ran on 2026-11-15. Triggers from then to today are created with their own trigger dates, except a renewal whose due date has passed and one whose payment was already paid. The payment that fell due while the app was off is overdue instead.",
+      "input": {
+        "last_run_date": "2026-11-15",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 2,
+            "name": "Netflix",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 3,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 4,
+            "name": "Bitwarden",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 5,
+            "name": "Claude",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-19",
+            "expected_cents": 1199,
+            "status": "expected"
+          },
+          {
+            "id": 20,
+            "subscription_id": 2,
+            "due_date": "2026-11-21",
+            "expected_cents": 1399,
+            "status": "expected"
+          },
+          {
+            "id": 30,
+            "subscription_id": 3,
+            "due_date": "2026-11-23",
+            "expected_cents": 999,
+            "status": "expected"
+          },
+          {
+            "id": 40,
+            "subscription_id": 4,
+            "due_date": "2026-11-22",
+            "expected_cents": 1000,
+            "status": "paid"
+          },
+          {
+            "id": 50,
+            "subscription_id": 5,
+            "due_date": "2026-11-24",
+            "expected_cents": 2000,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-18",
+            "dedupe_key": "renewal:2:2026-11-18",
+            "subscription_id": 2,
+            "payment_id": 20,
+            "params": {
+              "name": "Netflix",
+              "date": "2026-11-21",
+              "amount_cents": 1399
+            }
+          },
+          {
+            "type": "overdue",
+            "severity": "critical",
+            "trigger_date": "2026-11-20",
+            "dedupe_key": "overdue:1:2026-11-20",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-19",
+              "amount_cents": 1199
+            }
+          },
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-20",
+            "dedupe_key": "renewal:3:2026-11-20",
+            "subscription_id": 3,
+            "payment_id": 30,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-23",
+              "amount_cents": 999
+            }
+          },
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "renewal:5:2026-11-21",
+            "subscription_id": 5,
+            "payment_id": 50,
+            "params": {
+              "name": "Claude",
+              "date": "2026-11-24",
+              "amount_cents": 2000
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "event-today-still-fires",
+      "rules": ["BR-15", "BR-19", "BR-23"],
+      "description": "A trial and an access period that both end today still get their notifications in the catch-up: the trial ending on its trigger date three days ago, the ending notification today.",
+      "input": {
+        "last_run_date": "2026-11-17",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "ChatGPT",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "trial",
+            "archived": false,
+            "reminder_days": null,
+            "trial_end_date": "2026-11-21"
+          },
+          {
+            "id": 2,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "cancelled",
+            "archived": false,
+            "reminder_days": null,
+            "ends_on": "2026-11-21"
+          }
+        ],
+        "payments": [],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "trial_ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-18",
+            "dedupe_key": "trial_ending:1:2026-11-18",
+            "subscription_id": 1,
+            "payment_id": null,
+            "params": {
+              "name": "ChatGPT",
+              "date": "2026-11-21"
+            }
+          },
+          {
+            "type": "ending",
+            "severity": "warning",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "ending:2:2026-11-21",
+            "subscription_id": 2,
+            "payment_id": null,
+            "params": {
+              "name": "Proton VPN",
+              "date": "2026-11-21"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "catch-up-skips-an-ends-on-already-past",
+      "rules": ["BR-19", "BR-23"],
+      "description": "Access ended two days ago while the app was off. Its end-date trigger falls inside the catch-up, but the event is past, so it is skipped.",
+      "input": {
+        "last_run_date": "2026-11-15",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "cancelled",
+            "archived": false,
+            "reminder_days": null,
+            "ends_on": "2026-11-19"
+          }
+        ],
+        "payments": [],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    },
+    {
+      "id": "first-run-creates-only-todays-triggers",
+      "rules": ["BR-19"],
+      "description": "On the first run there is no previous run, so only triggers dated today are created: no renewal or overdue for earlier trigger dates.",
+      "input": {
+        "last_run_date": null,
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 2,
+            "name": "Netflix",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          },
+          {
+            "id": 3,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-24",
+            "expected_cents": 1199,
+            "status": "expected"
+          },
+          {
+            "id": 20,
+            "subscription_id": 2,
+            "due_date": "2026-11-23",
+            "expected_cents": 1399,
+            "status": "expected"
+          },
+          {
+            "id": 30,
+            "subscription_id": 3,
+            "due_date": "2026-11-19",
+            "expected_cents": 999,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "renewal",
+            "severity": "info",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "renewal:1:2026-11-21",
+            "subscription_id": 1,
+            "payment_id": 10,
+            "params": {
+              "name": "Spotify",
+              "date": "2026-11-24",
+              "amount_cents": 1199
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "paused-gets-overdue-but-no-renewal",
+      "rules": ["BR-13", "BR-16"],
+      "description": "Paused subscriptions get no renewal reminders: the payment due today, on the pause date, is not reminded even with a lead time of 0. An unpaid payment from before a pause is still overdue.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "paused",
+            "archived": false,
+            "reminder_days": 0
+          },
+          {
+            "id": 2,
+            "name": "Netflix",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "paused",
+            "archived": false,
+            "reminder_days": null
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "expected"
+          },
+          {
+            "id": 20,
+            "subscription_id": 2,
+            "due_date": "2026-11-20",
+            "expected_cents": 1399,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": [
+          {
+            "type": "overdue",
+            "severity": "critical",
+            "trigger_date": "2026-11-21",
+            "dedupe_key": "overdue:2:2026-11-21",
+            "subscription_id": 2,
+            "payment_id": 20,
+            "params": {
+              "name": "Netflix",
+              "date": "2026-11-20",
+              "amount_cents": 1399
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "archived-gets-no-notifications",
+      "rules": ["BR-27"],
+      "description": "Archived subscriptions get no notification of any type: no renewal, overdue, trial ending or ending.",
+      "input": {
+        "last_run_date": "2026-11-21",
+        "today": "2026-11-21",
+        "settings": {
+          "default_reminder_days": 3,
+          "trial_reminder_days": 3,
+          "yearly_reminder_days": 14,
+          "ending_reminder_days": 7
+        },
+        "subscriptions": [
+          {
+            "id": 1,
+            "name": "Spotify",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "active",
+            "archived": true,
+            "reminder_days": null
+          },
+          {
+            "id": 2,
+            "name": "ChatGPT",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "trial",
+            "archived": true,
+            "reminder_days": null,
+            "trial_end_date": "2026-11-24"
+          },
+          {
+            "id": 3,
+            "name": "Proton VPN",
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            },
+            "status": "cancelled",
+            "archived": true,
+            "reminder_days": null,
+            "ends_on": "2026-11-28"
+          }
+        ],
+        "payments": [
+          {
+            "id": 10,
+            "subscription_id": 1,
+            "due_date": "2026-11-24",
+            "expected_cents": 1199,
+            "status": "expected"
+          },
+          {
+            "id": 11,
+            "subscription_id": 1,
+            "due_date": "2026-11-20",
+            "expected_cents": 1199,
+            "status": "expected"
+          }
+        ],
+        "existing_dedupe_keys": []
+      },
+      "expected": {
+        "notifications": []
+      }
+    }
+  ]
+}

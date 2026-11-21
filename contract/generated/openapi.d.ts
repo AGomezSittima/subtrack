@@ -178,7 +178,7 @@ export interface paths {
         head?: never;
         /**
          * Edit a subscription
-         * @description Changes the fields sent; `null` clears a nullable field. Price, status and archive change only through their own endpoints. `ends_on` is editable only while cancelled (otherwise 422 `invalid` on `/ends_on`).
+         * @description Changes the fields sent; `null` clears a nullable field. Price, status and archive change only through their own endpoints. `ends_on` is editable only while cancelled (otherwise 422 `invalid` on `/ends_on`). `trial_end_date` can't be cleared while the subscription is a trial (422 `invalid` on `/trial_end_date`).
          */
         patch: operations["updateSubscription"];
         trace?: never;
@@ -518,7 +518,7 @@ export interface paths {
         };
         /**
          * Monthly equivalent per category
-         * @description The summary's monthly total split by category, ordered by exact monthly equivalent descending, then category code. Parts are allocated by largest remainder, so they add up to `total_monthly_equivalent_cents`.
+         * @description The summary's monthly total split by category, ordered by exact monthly equivalent descending, then category code. Parts are allocated by largest remainder in category-code order, so they add up to `total_monthly_equivalent_cents`.
          */
         get: operations["getStatsByCategory"];
         put?: never;
@@ -538,7 +538,7 @@ export interface paths {
         };
         /**
          * Monthly equivalent per payment method
-         * @description As `/stats/by-category`, split by payment method label; subscriptions without one are grouped under `null`.
+         * @description As `/stats/by-category`, split by payment method label; subscriptions without one are grouped under `null`. Allocation runs in label order, with `null` last.
          */
         get: operations["getStatsByPaymentMethod"];
         put?: never;
@@ -902,6 +902,8 @@ export interface components {
             cancelled_at: components["schemas"]["Date"] | null;
             /** @description Date it was paused; set while paused. */
             paused_at: components["schemas"]["Date"] | null;
+            /** @description Date it was last resumed or reactivated, or null. */
+            resumed_on: components["schemas"]["Date"] | null;
             /** @description Last day of access after cancelling; set while cancelled. */
             ends_on: components["schemas"]["Date"] | null;
             payment_method: components["schemas"]["PaymentMethodLabel"] | null;
@@ -914,6 +916,8 @@ export interface components {
             notes: components["schemas"]["Note"] | null;
             /** @description When it was archived, or null. */
             archived_at: components["schemas"]["Timestamp"] | null;
+            /** @description Date it was last unarchived, or null. */
+            unarchived_on: components["schemas"]["Date"] | null;
             /** @description Next billing date on or after today, or null when it won't be charged again. */
             next_renewal_date: components["schemas"]["Date"] | null;
             /** @description Exact monthly equivalent of the current price, rounded once. */
@@ -1197,6 +1201,7 @@ export interface components {
             trial_end_date: components["schemas"]["Date"] | null;
             cancelled_at: components["schemas"]["Date"] | null;
             paused_at: components["schemas"]["Date"] | null;
+            resumed_on: components["schemas"]["Date"] | null;
             ends_on: components["schemas"]["Date"] | null;
             payment_method: components["schemas"]["PaymentMethodLabel"] | null;
             auto_confirm: boolean;
@@ -1205,6 +1210,7 @@ export interface components {
             cancel_url: components["schemas"]["WebUrl"] | null;
             notes: components["schemas"]["Note"] | null;
             archived_at: components["schemas"]["Timestamp"] | null;
+            unarchived_on: components["schemas"]["Date"] | null;
             created_at: components["schemas"]["Timestamp"];
             updated_at: components["schemas"]["Timestamp"];
         };

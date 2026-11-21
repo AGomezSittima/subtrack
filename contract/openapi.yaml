@@ -279,7 +279,7 @@ paths:
       operationId: updateSubscription
       tags: [subscriptions]
       summary: Edit a subscription
-      description: "Changes the fields sent; `null` clears a nullable field. Price, status and archive change only through their own endpoints. `ends_on` is editable only while cancelled (otherwise 422 `invalid` on `/ends_on`)."
+      description: "Changes the fields sent; `null` clears a nullable field. Price, status and archive change only through their own endpoints. `ends_on` is editable only while cancelled (otherwise 422 `invalid` on `/ends_on`). `trial_end_date` can't be cleared while the subscription is a trial (422 `invalid` on `/trial_end_date`)."
       requestBody:
         required: true
         content:
@@ -738,7 +738,7 @@ paths:
       operationId: getStatsByCategory
       tags: [stats]
       summary: Monthly equivalent per category
-      description: "The summary's monthly total split by category, ordered by exact monthly equivalent descending, then category code. Parts are allocated by largest remainder, so they add up to `total_monthly_equivalent_cents`."
+      description: "The summary's monthly total split by category, ordered by exact monthly equivalent descending, then category code. Parts are allocated by largest remainder in category-code order, so they add up to `total_monthly_equivalent_cents`."
       responses:
         "200":
           description: The breakdown.
@@ -754,7 +754,7 @@ paths:
       operationId: getStatsByPaymentMethod
       tags: [stats]
       summary: Monthly equivalent per payment method
-      description: "As `/stats/by-category`, split by payment method label; subscriptions without one are grouped under `null`."
+      description: "As `/stats/by-category`, split by payment method label; subscriptions without one are grouped under `null`. Allocation runs in label order, with `null` last."
       responses:
         "200":
           description: The breakdown.
@@ -1364,6 +1364,16 @@ components:
     Subscription:
       type: object
       additionalProperties: false
+      if:
+        required: [status]
+        properties:
+          status:
+            const: trial
+      then:
+        required: [trial_end_date]
+        properties:
+          trial_end_date:
+            $ref: "#/components/schemas/Date"
       required:
         - id
         - catalog_service_id
@@ -1378,6 +1388,7 @@ components:
         - trial_end_date
         - cancelled_at
         - paused_at
+        - resumed_on
         - ends_on
         - payment_method
         - auto_confirm
@@ -1386,6 +1397,7 @@ components:
         - cancel_url
         - notes
         - archived_at
+        - unarchived_on
         - next_renewal_date
         - monthly_equivalent_cents
         - yearly_equivalent_cents
@@ -1435,6 +1447,11 @@ components:
           anyOf:
             - $ref: "#/components/schemas/Date"
             - type: "null"
+        resumed_on:
+          description: Date it was last resumed or reactivated, or null.
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
         ends_on:
           description: Last day of access after cancelling; set while cancelled.
           anyOf:
@@ -1471,6 +1488,11 @@ components:
           anyOf:
             - $ref: "#/components/schemas/Timestamp"
             - type: "null"
+        unarchived_on:
+          description: Date it was last unarchived, or null.
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
         next_renewal_date:
           description: "Next billing date on or after today, or null when it won't be charged again."
           anyOf:
@@ -1505,6 +1527,16 @@ components:
     SubscriptionCreate:
       type: object
       additionalProperties: false
+      if:
+        required: [status]
+        properties:
+          status:
+            const: trial
+      then:
+        required: [trial_end_date]
+        properties:
+          trial_end_date:
+            $ref: "#/components/schemas/Date"
       required:
         [
           name,
@@ -2122,6 +2154,16 @@ components:
     ExportSubscription:
       type: object
       additionalProperties: false
+      if:
+        required: [status]
+        properties:
+          status:
+            const: trial
+      then:
+        required: [trial_end_date]
+        properties:
+          trial_end_date:
+            $ref: "#/components/schemas/Date"
       required:
         - id
         - catalog_service_id
@@ -2136,6 +2178,7 @@ components:
         - trial_end_date
         - cancelled_at
         - paused_at
+        - resumed_on
         - ends_on
         - payment_method
         - auto_confirm
@@ -2144,6 +2187,7 @@ components:
         - cancel_url
         - notes
         - archived_at
+        - unarchived_on
         - created_at
         - updated_at
       properties:
@@ -2183,6 +2227,10 @@ components:
           anyOf:
             - $ref: "#/components/schemas/Date"
             - type: "null"
+        resumed_on:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
         ends_on:
           anyOf:
             - $ref: "#/components/schemas/Date"
@@ -2214,6 +2262,10 @@ components:
         archived_at:
           anyOf:
             - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        unarchived_on:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
             - type: "null"
         created_at:
           $ref: "#/components/schemas/Timestamp"

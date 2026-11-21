@@ -53,7 +53,7 @@
             "required": ["items"],
             "properties": {
               "items": {
-                "description": "Subscriptions in display order. Items with the same part label (e.g. a category) are summed exactly into one part.",
+                "description": "Subscriptions in any order. Items with the same part are summed exactly into one part.",
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -61,8 +61,7 @@
                   "required": ["part", "price_cents", "interval"],
                   "properties": {
                     "part": {
-                      "type": "string",
-                      "minLength": 1
+                      "$ref": "#/$defs/part"
                     },
                     "price_cents": {
                       "$ref": "common.schema.json#/$defs/cents"
@@ -85,7 +84,7 @@
                 "description": "Sum of the exact monthly equivalents, rounded once, half-up."
               },
               "parts": {
-                "description": "One entry per part label, in order of first appearance. The cents add up to total_cents.",
+                "description": "One entry per part, in key order. The cents add up to total_cents.",
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -93,8 +92,7 @@
                   "required": ["part", "cents"],
                   "properties": {
                     "part": {
-                      "type": "string",
-                      "minLength": 1
+                      "$ref": "#/$defs/part"
                     },
                     "cents": {
                       "$ref": "common.schema.json#/$defs/cents"
@@ -106,6 +104,24 @@
           }
         }
       }
+    }
+  },
+  "$defs": {
+    "part": {
+      "description": "A category key or payment method label (null = no label), or a subscription id. One kind per case.",
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   }
 }

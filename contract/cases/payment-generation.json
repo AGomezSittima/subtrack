@@ -1,0 +1,1787 @@
+{
+  "$schema": "./schema/payment-generation.schema.json",
+  "description": "Payment planning for one subscription: given its state, price history and existing payments on a day, the full set of payments after planning and the resulting status. Status changes first, then generation from the later of the creation, resume and unarchive dates up to today + horizon (both inclusive), then auto-confirm. Pausing, cancelling and archiving remove scheduled payments still expected after the cut-off; settled payments never change.",
+  "rules": [
+    "BR-1",
+    "BR-6",
+    "BR-7",
+    "BR-8",
+    "BR-9",
+    "BR-10",
+    "BR-11",
+    "BR-12",
+    "BR-20",
+    "BR-21",
+    "BR-27"
+  ],
+  "cases": [
+    {
+      "id": "billing-date-on-the-horizon-end-is-generated",
+      "rules": ["BR-6"],
+      "description": "Today is 2026-11-21 and the horizon is 60 days, so it ends on 2027-01-20. The billing date on that day is generated; the next one (2027-02-20) is not.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-20",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-20"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-12-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "billing-date-one-day-past-the-horizon-is-not",
+      "rules": ["BR-6"],
+      "description": "With a 59-day horizon the window ends on 2027-01-19, one day before the 2027-01-20 billing date, so only 2026-12-20 is generated.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 59
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-20",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-20"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-12-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "billing-date-on-the-creation-day-is-generated",
+      "rules": ["BR-6"],
+      "description": "Added to the app on 2026-11-21, which is a billing date: that date is generated. The billing date a month earlier is not.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-10-21",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-10-21"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "billing-dates-before-creation-are-not-generated-without-backfill",
+      "rules": ["BR-6"],
+      "description": "The anchor is in August but the subscription was added on 2026-11-21 without a backfill: the August to November billing dates are not generated.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-08-05",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-08-05"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-12-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "backfill-records-past-dates-as-paid-at-the-price-in-force",
+      "rules": ["BR-6", "BR-8"],
+      "description": "Created with a backfill on 2026-11-21. Every billing date from the anchor to the day before creation is recorded as paid on its due date, at the price in force then (9.99 € until September, 11.99 € from October). Later dates are expected as usual, still clamped from the 31st.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": true,
+        "subscription": {
+          "anchor_date": "2026-07-31",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 999,
+            "effective_from": "2026-07-31"
+          },
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-10-01"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-07-31",
+            "expected_cents": 999,
+            "status": "paid",
+            "source": "backfill",
+            "paid_cents": 999,
+            "paid_date": "2026-07-31"
+          },
+          {
+            "due_date": "2026-08-31",
+            "expected_cents": 999,
+            "status": "paid",
+            "source": "backfill",
+            "paid_cents": 999,
+            "paid_date": "2026-08-31"
+          },
+          {
+            "due_date": "2026-09-30",
+            "expected_cents": 999,
+            "status": "paid",
+            "source": "backfill",
+            "paid_cents": 999,
+            "paid_date": "2026-09-30"
+          },
+          {
+            "due_date": "2026-10-31",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "backfill",
+            "paid_cents": 1199,
+            "paid_date": "2026-10-31"
+          },
+          {
+            "due_date": "2026-11-30",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-31",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "rerun-with-every-payment-present-changes-nothing",
+      "rules": ["BR-7", "BR-20"],
+      "description": "Every billing date in the window already has a payment, so running again adds, removes and changes nothing.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-20",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-20"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-12-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2027-01-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-12-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2027-01-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "settled-payment-on-a-billing-date-is-not-duplicated",
+      "rules": ["BR-7"],
+      "description": "Billing dates that already have a paid or skipped payment are not generated again; only the missing 2027-01-20 date is added.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-20",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-01",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-20"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-20",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-11-20"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-12-20",
+            "expected_cents": 1199,
+            "status": "skipped",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-20",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-11-20"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-12-20",
+            "expected_cents": 1199,
+            "status": "skipped",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-20",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "price-change-between-two-payments",
+      "rules": ["BR-8"],
+      "description": "The price changes from 11.99 € to 12.99 € on 2026-12-15, between two billing dates: the December payment keeps the old price and the January one gets the new price.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-01",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-01"
+          },
+          {
+            "price_cents": 1299,
+            "effective_from": "2026-12-15"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-12-01",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-01",
+            "expected_cents": 1299,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "price-change-effective-on-a-due-date-applies-to-it",
+      "rules": ["BR-8"],
+      "description": "A price change effective on a due date applies to the payment due that day.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-01",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-21",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-01"
+          },
+          {
+            "price_cents": 1299,
+            "effective_from": "2027-01-01"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-12-01",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-01",
+            "expected_cents": 1299,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "price-change-updates-expected-payments-but-not-settled-ones",
+      "rules": ["BR-9"],
+      "description": "The price rises to 14.99 € from 2026-10-01. Paid, failed and skipped payments keep their amounts; payments still expected on or after that date, including an overdue one, move to the new price.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-09-10",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-09-01",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-09-10"
+          },
+          {
+            "price_cents": 1499,
+            "effective_from": "2026-10-01"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-10",
+            "expected_cents": 1199,
+            "status": "failed",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-11-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p4",
+            "due_date": "2026-12-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-10",
+            "expected_cents": 1199,
+            "status": "failed",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-11-10",
+            "expected_cents": 1499,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p4",
+            "due_date": "2026-12-10",
+            "expected_cents": 1499,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-10",
+            "expected_cents": 1499,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "pause-spanning-billing-dates-generates-nothing",
+      "rules": ["BR-10"],
+      "description": "Paused on 2026-09-20 and still paused: the billing dates from October to January fall in the pause and are not generated. Earlier payments are kept.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-15",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "paused",
+          "created_on": "2026-08-01",
+          "auto_confirm": false,
+          "paused_at": "2026-09-20"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-15"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-15",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-15"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-09-15",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-15"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-15",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-15"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-09-15",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-15"
+          }
+        ],
+        "subscription_status": "paused"
+      }
+    },
+    {
+      "id": "pause-removes-expected-payments-after-the-pause-date-only",
+      "rules": ["BR-10"],
+      "description": "Paused today, on a billing date: the payment due on the pause date is kept, the expected payment after it is removed.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-21",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "paused",
+          "created_on": "2026-11-01",
+          "auto_confirm": false,
+          "paused_at": "2026-11-21"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-21"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-12-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "paused"
+      }
+    },
+    {
+      "id": "resume-mid-period-keeps-the-anchor-day",
+      "rules": ["BR-1", "BR-10"],
+      "description": "Paused in September and resumed today, in the middle of a period. The September and October billing dates are not created. The next dates still come from the anchor on the 31st (2026-11-30, 2026-12-31), not from the resume date.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-31",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-08-01",
+          "auto_confirm": false,
+          "resumed_on": "2026-11-21"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-31"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-31",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-31"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-31",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-31"
+          },
+          {
+            "due_date": "2026-11-30",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-31",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "later-run-after-resume-does-not-refill-the-pause",
+      "rules": ["BR-10"],
+      "description": "A run two weeks after resuming: the September and October dates of the pause stay without payments, and only the new date inside the horizon (2027-01-31) is added.",
+      "input": {
+        "today": "2026-12-05",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-31",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-08-01",
+          "auto_confirm": false,
+          "resumed_on": "2026-11-21"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-31"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-31",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-31"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-11-30",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-12-31",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-31",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-31"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-11-30",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-12-31",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-31",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "resume-on-a-billing-date-includes-it",
+      "rules": ["BR-10"],
+      "description": "Resumed on a billing date (2026-11-15): that date is generated, even though it is already in the past today.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-15",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-08-01",
+          "auto_confirm": false,
+          "resumed_on": "2026-11-15"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-15"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-15",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-15"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-15",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-15"
+          },
+          {
+            "due_date": "2026-11-15",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-15",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-15",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "reactivation-generates-from-the-reactivation-date",
+      "rules": ["BR-10"],
+      "description": "Cancelled with access until 2026-09-01, then reactivated today: the billing dates in between are not created, and generation restarts from the reactivation date.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-02-01",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-08-01",
+          "auto_confirm": false,
+          "resumed_on": "2026-11-21"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-02-01"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-01",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-01"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-08-01",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-08-01"
+          },
+          {
+            "due_date": "2026-12-01",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-01",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "cancel-removes-payments-on-or-after-ends-on",
+      "rules": ["BR-10"],
+      "description": "Cancelled with access until 2027-01-10, a billing date. The expected payment before it stays, the one due on that day is removed, and nothing new is generated.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-10",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "cancelled",
+          "created_on": "2026-11-01",
+          "auto_confirm": false,
+          "ends_on": "2027-01-10"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-10"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-11-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-12-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2027-01-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-11-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-12-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "cancelled"
+      }
+    },
+    {
+      "id": "auto-confirm-on-the-due-date",
+      "rules": ["BR-11"],
+      "description": "With auto-confirm on, the payment due today becomes paid, with the expected amount and the due date as paid date. The future one stays expected.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-21",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-01",
+          "auto_confirm": true
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-21"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-11-21"
+          },
+          {
+            "due_date": "2026-12-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "auto-confirm-catches-up-several-missed-days",
+      "rules": ["BR-11"],
+      "description": "The app was off for months. Every expected payment due up to today becomes paid on its own due date, not today.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-05",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-09-01",
+          "auto_confirm": true
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-05"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-11-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p4",
+            "due_date": "2026-12-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-05"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-10-05"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-11-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-11-05"
+          },
+          {
+            "ref": "p4",
+            "due_date": "2026-12-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "auto-confirm-still-applies-while-paused",
+      "rules": ["BR-10", "BR-11"],
+      "description": "Paused on 2026-11-10 with auto-confirm on: the payment due before the pause is still confirmed, the one after the pause is removed.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-05",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "paused",
+          "created_on": "2026-09-01",
+          "auto_confirm": true,
+          "paused_at": "2026-11-10"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-05"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-10-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-10-05"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-11-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-12-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-10-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-10-05"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-11-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-11-05"
+          }
+        ],
+        "subscription_status": "paused"
+      }
+    },
+    {
+      "id": "without-auto-confirm-an-overdue-payment-stays-expected",
+      "rules": ["BR-21"],
+      "description": "Without auto-confirm, a payment past its due date stays expected until the user acts.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-05",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-10-01",
+          "auto_confirm": false
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-05"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-10-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-10-05"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-11-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-10-05",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-10-05"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-11-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-05",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "trial-becomes-active-the-day-after-it-ends",
+      "rules": ["BR-6", "BR-12"],
+      "description": "The trial ended yesterday, so the subscription becomes active. Its billing dates are generated as for any active subscription.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-11-21",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "trial",
+          "created_on": "2026-10-21",
+          "auto_confirm": false,
+          "trial_end_date": "2026-11-20"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-11-21"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-11-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-21",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "trial-on-its-last-day-stays-a-trial",
+      "rules": ["BR-6", "BR-12"],
+      "description": "The trial ends today, so it is still a trial. Trials get their billing dates generated too.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-11-22",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "trial",
+          "created_on": "2026-10-22",
+          "auto_confirm": false,
+          "trial_end_date": "2026-11-21"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-11-22"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [
+          {
+            "due_date": "2026-11-22",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-22",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "trial"
+      }
+    },
+    {
+      "id": "cancelled-trial-is-not-activated",
+      "rules": ["BR-12"],
+      "description": "A trial cancelled before its end stays cancelled after the end date, and gets no payments.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-11-11",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "cancelled",
+          "created_on": "2026-10-11",
+          "auto_confirm": false,
+          "trial_end_date": "2026-11-10",
+          "ends_on": "2026-11-11"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-11-11"
+          }
+        ],
+        "existing_payments": []
+      },
+      "expected": {
+        "payments": [],
+        "subscription_status": "cancelled"
+      }
+    },
+    {
+      "id": "archive-stops-generation-and-removes-future-expected-payments",
+      "rules": ["BR-27"],
+      "description": "Archived on 2026-11-10. Paid and past payments are kept, including the one due on the archive day; expected payments after it are removed and nothing new is generated.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-10",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-09-01",
+          "auto_confirm": false,
+          "archived_on": "2026-11-10"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-10"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-11-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p4",
+            "due_date": "2026-12-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p5",
+            "due_date": "2027-01-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "ref": "p3",
+            "due_date": "2026-11-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "archive-stops-auto-confirm",
+      "rules": ["BR-11", "BR-27"],
+      "description": "Archived with auto-confirm on: a payment due before the archive date is not confirmed and stays expected.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-10",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-11-01",
+          "auto_confirm": true,
+          "archived_on": "2026-11-15"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-10"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-11-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    },
+    {
+      "id": "unarchive-generates-from-the-unarchive-date",
+      "rules": ["BR-27"],
+      "description": "Archived in October and unarchived today: the November billing date from the archived period is not created, and generation restarts from today.",
+      "input": {
+        "today": "2026-11-21",
+        "settings": {
+          "payment_horizon_days": 60
+        },
+        "backfill": false,
+        "subscription": {
+          "anchor_date": "2026-01-10",
+          "interval": {
+            "count": 1,
+            "unit": "month"
+          },
+          "status": "active",
+          "created_on": "2026-09-01",
+          "auto_confirm": false,
+          "unarchived_on": "2026-11-21"
+        },
+        "price_history": [
+          {
+            "price_cents": 1199,
+            "effective_from": "2026-01-10"
+          }
+        ],
+        "existing_payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ]
+      },
+      "expected": {
+        "payments": [
+          {
+            "ref": "p1",
+            "due_date": "2026-09-10",
+            "expected_cents": 1199,
+            "status": "paid",
+            "source": "scheduled",
+            "paid_cents": 1199,
+            "paid_date": "2026-09-10"
+          },
+          {
+            "ref": "p2",
+            "due_date": "2026-10-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2026-12-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          },
+          {
+            "due_date": "2027-01-10",
+            "expected_cents": 1199,
+            "status": "expected",
+            "source": "scheduled"
+          }
+        ],
+        "subscription_status": "active"
+      }
+    }
+  ]
+}

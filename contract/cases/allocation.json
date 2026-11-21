@@ -1,6 +1,6 @@
 {
   "$schema": "./schema/allocation.schema.json",
-  "description": "Monthly equivalents allocated to parts that add up exactly to the shown total. The total is the exact sum rounded once, half-up. Each part is rounded down, then the leftover cents go one by one to the parts with the largest remainders; equal remainders go in input order.",
+  "description": "Monthly equivalents allocated to parts that add up exactly to the shown total. The total is the exact sum rounded once, half-up. Parts are put in key order (subscription ids numerically, then labels by code point, then the part without a label); each part is rounded down, then the leftover cents go one by one to the parts with the largest remainders, and equal remainders go to the earlier part.",
   "rules": ["BR-4", "BR-22", "BR-26"],
   "cases": [
     {
@@ -93,12 +93,12 @@
         "total_cents": 1699,
         "parts": [
           {
-            "part": "music",
-            "cents": 1199
-          },
-          {
             "part": "cloud",
             "cents": 500
+          },
+          {
+            "part": "music",
+            "cents": 1199
           }
         ]
       }
@@ -230,44 +230,6 @@
       }
     },
     {
-      "id": "equal-remainders-go-in-input-order",
-      "rules": ["BR-22", "BR-26"],
-      "description": "Two parts of exactly 0.5 cents: the total is 1 cent, and the earlier part gets it.",
-      "input": {
-        "items": [
-          {
-            "part": "video",
-            "price_cents": 5,
-            "interval": {
-              "count": 10,
-              "unit": "month"
-            }
-          },
-          {
-            "part": "music",
-            "price_cents": 5,
-            "interval": {
-              "count": 10,
-              "unit": "month"
-            }
-          }
-        ]
-      },
-      "expected": {
-        "total_cents": 1,
-        "parts": [
-          {
-            "part": "video",
-            "cents": 1
-          },
-          {
-            "part": "music",
-            "cents": 0
-          }
-        ]
-      }
-    },
-    {
       "id": "grouped-items-are-summed-exactly-before-allocating",
       "rules": ["BR-4", "BR-22", "BR-26"],
       "description": "Category breakdown: two weekly plans at 2.99 € in music sum exactly to 25.9133… € (not 12.96 € + 12.96 €), video is 11.99 €, a 49.99 € yearly VPN is 4.1658… €. The total is 42.0691… € → 42.07 €; the leftover cent goes to vpn (remainder .58 beats music's .33).",
@@ -321,6 +283,158 @@
           {
             "part": "vpn",
             "cents": 417
+          }
+        ]
+      }
+    },
+    {
+      "id": "equal-remainders-go-to-the-earlier-category-key",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Two categories of exactly 0.5 cents, given video first: the total is 1 cent, and music gets it because its key sorts first.",
+      "input": {
+        "items": [
+          {
+            "part": "video",
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "music",
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 1,
+        "parts": [
+          {
+            "part": "music",
+            "cents": 1
+          },
+          {
+            "part": "video",
+            "cents": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "equal-remainders-go-to-the-lower-subscription-id",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Per-subscription parts of exactly 0.5 cents each: the cent goes to the lower id, whatever the input order.",
+      "input": {
+        "items": [
+          {
+            "part": 7,
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": 3,
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 1,
+        "parts": [
+          {
+            "part": 3,
+            "cents": 1
+          },
+          {
+            "part": 7,
+            "cents": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "subscription-ids-sort-numerically-not-as-text",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Ids 10 and 2 tie: id 2 comes first (as text, 10 would sort before 2) and gets the cent.",
+      "input": {
+        "items": [
+          {
+            "part": 10,
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": 2,
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 1,
+        "parts": [
+          {
+            "part": 2,
+            "cents": 1
+          },
+          {
+            "part": 10,
+            "cents": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "part-without-a-label-sorts-last",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Payment-method parts with a tie: the part without a label (null) sorts after every label, so the labelled part gets the cent.",
+      "input": {
+        "items": [
+          {
+            "part": null,
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "Visa ··4417",
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 1,
+        "parts": [
+          {
+            "part": "Visa ··4417",
+            "cents": 1
+          },
+          {
+            "part": null,
+            "cents": 0
           }
         ]
       }
