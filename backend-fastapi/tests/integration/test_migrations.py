@@ -1,5 +1,3 @@
-"""The schema built by db/migrations enforces the rules in docs/sdd.md (Database schema)."""
-
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
@@ -17,7 +15,6 @@ type Row = dict[str, Any]
 def insert(db: sqlite3.Connection, table: str, row: Row) -> int:
     columns = ", ".join(row)
     placeholders = ", ".join("?" for _ in row)
-    # Table and column names come from the constants in this module, never from input.
     sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"  # noqa: S608
     row_id = db.execute(sql, tuple(row.values())).lastrowid
     assert row_id is not None
@@ -110,9 +107,6 @@ def subscription_id(migrated_db: sqlite3.Connection) -> int:
     return insert(migrated_db, "subscription", subscription_row())
 
 
-# --- Migration files ---------------------------------------------------------------------------
-
-
 def test_migrations_are_applied_in_numeric_version_order(tmp_path: Path) -> None:
     for name in ["V10__later.sql", "V2__second.sql", "V1__first.sql", "README.md"]:
         (tmp_path / name).write_text("", encoding="utf-8")
@@ -168,9 +162,6 @@ def test_settings_start_with_the_documented_defaults(migrated_db: sqlite3.Connec
         "failed_attempts": "0",
         "retry_after": None,
     }
-
-
-# --- Valid rows --------------------------------------------------------------------------------
 
 
 def test_a_valid_row_can_be_inserted_in_each_table(migrated_db: sqlite3.Connection) -> None:
@@ -230,12 +221,9 @@ def test_valid_subscription_variants_are_accepted(
     insert(migrated_db, "subscription", row)
 
 
-# --- Rejected values ---------------------------------------------------------------------------
-
 type RowFactory = Callable[[int], Row]
 
 INVALID_ROWS: list[Any] = [
-    # Dates: YYYY-MM-DD only, and a real calendar day.
     *[
         pytest.param(
             "subscription", lambda _s, v=value: subscription_row(anchor_date=v), id=f"date-{value}"
@@ -247,7 +235,6 @@ INVALID_ROWS: list[Any] = [
     pytest.param("payment", lambda s: paid_payment_row(s, paid_date="2026-2-28"), id="paid_date"),
     pytest.param("price_history", lambda s: price_row(s, effective_from=""), id="effective_from"),
     pytest.param("notification", lambda s: notification_row(s, trigger_date="x"), id="trigger"),
-    # Timestamps: UTC with milliseconds and Z.
     *[
         pytest.param(
             "subscription", lambda _s, v=value: subscription_row(created_at=v), id=f"ts-{value}"
@@ -274,7 +261,6 @@ INVALID_ROWS: list[Any] = [
     pytest.param(
         "session", lambda _s: session_row(last_activity_at="2026-11-10T15:18:00.0Z"), id="session"
     ),
-    # Closed sets.
     pytest.param("subscription", lambda _s: subscription_row(interval_unit="months"), id="unit"),
     pytest.param("subscription", lambda _s: subscription_row(status="expired"), id="sub-status"),
     pytest.param("subscription", lambda _s: subscription_row(category="Music"), id="category"),
@@ -284,14 +270,12 @@ INVALID_ROWS: list[Any] = [
     pytest.param("payment", lambda s: payment_row(s, source="import"), id="payment-source"),
     pytest.param("notification", lambda s: notification_row(s, type="reminder"), id="type"),
     pytest.param("notification", lambda s: notification_row(s, severity="error"), id="severity"),
-    # Money: integer cents, never negative, never text or a float (STRICT).
     pytest.param("subscription", lambda _s: subscription_row(price_cents=-1), id="price-neg"),
     pytest.param("subscription", lambda _s: subscription_row(price_cents="abc"), id="price-text"),
     pytest.param("subscription", lambda _s: subscription_row(price_cents=11.99), id="price-float"),
     pytest.param("price_history", lambda s: price_row(s, price_cents=-1), id="history-neg"),
     pytest.param("payment", lambda s: payment_row(s, expected_cents=-1), id="expected-neg"),
     pytest.param("payment", lambda s: paid_payment_row(s, paid_cents=-1), id="paid-neg"),
-    # Other ranges and shapes.
     pytest.param("subscription", lambda _s: subscription_row(interval_count=0), id="count-zero"),
     pytest.param("subscription", lambda _s: subscription_row(reminder_days=-2), id="reminder"),
     pytest.param("catalog_service", lambda _s: catalog_row(default_plans="{}"), id="plans-obj"),
@@ -299,7 +283,6 @@ INVALID_ROWS: list[Any] = [
     pytest.param("notification", lambda s: notification_row(s, params="{name"), id="params-json"),
     pytest.param("session", lambda _s: session_row(token_hash="A" * 64), id="token-uppercase"),
     pytest.param("session", lambda _s: session_row(token_hash="a" * 63), id="token-short"),
-    # Status consistency.
     pytest.param(
         "subscription",
         lambda _s: subscription_row(status="cancelled", cancelled_at="2026-03-01"),
@@ -316,7 +299,6 @@ INVALID_ROWS: list[Any] = [
         lambda s: payment_row(s, paid_cents=1199, paid_date="2026-02-28"),
         id="expected-with-paid-fields",
     ),
-    # Foreign keys are enforced.
     pytest.param("payment", lambda s: payment_row(s + 999), id="payment-unknown-subscription"),
 ]
 
@@ -365,7 +347,7 @@ def test_unknown_and_duplicate_setting_keys_are_rejected(migrated_db: sqlite3.Co
         insert(migrated_db, "setting", {"key": "theme", "value": "dark", "updated_at": TS})
 
 
-def test_br_6_a_price_change_date_is_unique_per_subscription(
+def test_fr_6_a_price_change_date_is_unique_per_subscription(
     migrated_db: sqlite3.Connection, subscription_id: int
 ) -> None:
     insert(migrated_db, "price_history", price_row(subscription_id))
@@ -388,9 +370,6 @@ def test_a_session_token_hash_is_unique(migrated_db: sqlite3.Connection) -> None
 
     with pytest.raises(sqlite3.IntegrityError):
         insert(migrated_db, "session", session_row())
-
-
-# --- Payment idempotency (BR-7) ----------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -428,9 +407,6 @@ def test_fr_12_manual_payments_may_share_a_due_date(
     insert(migrated_db, "payment", paid_payment_row(subscription_id, source=second))
 
     assert count(migrated_db, "payment") == 2
-
-
-# --- ON DELETE behavior ------------------------------------------------------------------------
 
 
 def test_deleting_a_subscription_cascades_to_its_history_and_keeps_its_notifications(
