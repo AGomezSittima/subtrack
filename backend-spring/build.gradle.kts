@@ -60,6 +60,9 @@ tasks.test {
   useJUnitPlatform()
   // sqlite-jdbc loads its native library through System::load.
   jvmArgs("--enable-native-access=ALL-UNNAMED")
+  val casesDir = rootDir.resolve("../contract/cases").normalize()
+  inputs.dir(casesDir).withPathSensitivity(PathSensitivity.RELATIVE)
+  systemProperty("subtrack.cases.dir", casesDir.absolutePath)
 }
 
 checkstyle {
