@@ -164,15 +164,17 @@ Catalogue rows change only through migrations, so the table has no timestamps. C
 | anchor\_date | date | first billing date |
 | status | text, CHECK in (trial, active, paused, cancelled) |  |
 | trial\_end\_date, cancelled\_at, paused\_at | date, nullable |  |
+| resumed\_on | date, nullable | last resume or reactivation; no payments are generated before it |
 | payment\_method | text, nullable | free label, e.g. "Visa ··4417" |
 | auto\_confirm | int 0/1 | default 0 |
 | reminder\_days | int, nullable | null = global default, -1 = off |
 | website, cancel\_url, notes | text, nullable |  |
 | ends\_on | date, nullable | last day of access after cancelling |
 | archived\_at | timestamp, nullable | set = archived |
+| unarchived\_on | date, nullable | last unarchive; no payments are generated before it |
 | created\_at, updated\_at | timestamp |  |
 
-Row checks: a `cancelled` subscription has `cancelled_at` and `ends_on`; a `paused` one has `paused_at`.
+Row checks: a `cancelled` subscription has `cancelled_at` and `ends_on`; a `paused` one has `paused_at`; a `trial` has `trial_end_date` (BR-28).
 
 ### price\_history
 
@@ -249,6 +251,7 @@ Besides the unique constraints above (`catalog_service.name`, `price_history (su
 ### Migrations and ownership
 
 - `db/migrations/V1__init.sql` creates the schema and the default settings; `V2__catalog_seed.sql` is reserved for the initial catalogue and has no rows until its content is decided (SRS open question); later changes are new `Vn__` files.
+- `V3__trial_end_date_and_resume_dates.sql` rebuilds `subscription` to add the trial check and the `resumed_on` and `unarchived_on` columns. SQLite can't add a table `CHECK` with `ALTER TABLE`, so it follows SQLite's documented rebuild: create the new table, copy, drop, rename, recreate the index. That procedure needs foreign keys off, or dropping the old table would cascade to `price_history` and `payment`. Flyway runs each migration in a transaction, where `PRAGMA foreign_keys = OFF` has no effect. But Flyway's sqlite-jdbc connection already leaves foreign keys off (checked with the pinned Flyway image), so the rebuild is safe. The migration starts by inserting `pragma_foreign_keys` into a temporary table whose `CHECK` requires 0, so it aborts before touching data if foreign keys are ever on. BEFORE INSERT/UPDATE triggers with `RAISE(ABORT, …)` would have avoided the rebuild, but they would keep the rule outside the table definition and wouldn't check existing rows. The test helper applies migrations with foreign keys off, like Flyway.
 - `backend-fastapi/tests/integration/test_migrations.py` applies every migration to a fresh SQLite file (fixture `migrated_db` in `tests/conftest.py`, reused by repository tests) and checks the constraints.
 - Only the Flyway `migrate` container changes the schema. Spring runs with Flyway disabled and `ddl-auto=validate`; FastAPI never calls `create_all`. A mismatch fails at startup.
 - Every connection sets `PRAGMA foreign_keys = ON` (off by default in SQLite), `journal_mode = WAL` and a `busy_timeout`.
@@ -326,7 +329,7 @@ The `backend` field in `/health` lets the frontend show which implementation is 
 - **Security.** One cookie scheme, `subtrack_session`, applied globally; `security: []` only on `/health`, `/auth/status` and `/auth/unlock`.
 - **Status changes** (`POST /subscriptions/{id}/status`, body `{status, date?, ends_on?}`; `date` defaults to today and is only for pause and cancel, `ends_on` only for cancel). Allowed: trial → active, paused, cancelled; active → paused, cancelled; paused → active, cancelled; cancelled → active. Anything else is 409 `invalid-status-transition`.
 - **Payments.** A manual payment (`POST /payments`, `{subscription_id, paid_cents, paid_date, note?}`) is stored as `paid`, source `manual`, with `due_date = paid_date` and `expected_cents = paid_cents`. Confirming defaults `paid_cents` to `expected_cents` and `paid_date` to the due date. Confirm, skip and fail apply only to `expected` payments (otherwise 409 `payment-not-expected`).
-- **Statistics.** Breakdowns are ordered by exact monthly equivalent descending, then key, and allocated by largest remainder in that order (BR-26; equal remainders go to the earlier part). `/stats/monthly` groups payments by the month of their due date: `planned_cents` is every payment's `expected_cents`, `actual_cents` the paid ones' `paid_cents`.
+- **Statistics.** Breakdowns are ordered by exact monthly equivalent descending, then key, and allocated by largest remainder with the parts in key order: categories by code, payment methods by label with no label last, subscriptions by id (BR-26; equal remainders go to the earlier part). The display order doesn't affect the allocation. `/stats/monthly` groups payments by the month of their due date: `planned_cents` is every payment's `expected_cents`, `actual_cents` the paid ones' `paid_cents`.
 - **Passcode.** `^[A-Za-z0-9]{6,128}$`. Setting or changing it deletes other sessions and returns a fresh session cookie. A missing or wrong `current` counts as a failed attempt.
 
 ### Errors
@@ -386,7 +389,7 @@ Both backends use the same four layers and the same module names, so code can be
 
 1. **API layer**: routes, request/response models, problem-JSON error handler. No logic.
 2. **Service layer**: use cases (create subscription, confirm payment, change price, run scheduler), one transaction each.
-3. **Billing core**: pure functions with no I/O for BR-1 to BR-5 (next dates, clamping, normalization). The shared test cases target this module directly.
+3. **Billing core**: pure functions with no I/O: billing dates and cost normalization (BR-1 to BR-5), allocation (BR-26), payment planning (BR-6 to BR-12, BR-27) and reminder planning (BR-13 to BR-17, BR-19, BR-23, BR-24). The shared test cases target this module directly.
 4. **Repository layer**: data access for the seven tables.
 
 Time is injected everywhere (a `Clock` in Java, a `today()` provider in Python), so tests can pin "today" and the scheduler can be tested across months.
@@ -405,10 +408,16 @@ Time is injected everywhere (a `Clock` in Java, a `today()` provider in Python),
 
 ### Scheduler
 
+The scheduler job contains no business rules. It loads data, calls the pure planning functions of the billing core, and saves what they return. The same planners serve every use case that changes payments, so the rules exist in one place per backend and are pinned by the shared cases.
+
 - Runs once at startup, then every hour, and in test mode on `POST /admin/run-scheduler`.
-- Steps in order, each in its own transaction: activate ended trials (BR-12), generate payments up to the horizon (BR-6 to BR-8), auto-confirm (BR-11), create notifications for every trigger date from `last_scheduler_run` to today (BR-13 to BR-19), then store `last_scheduler_run`.
-- Idempotency comes from the database: the payment unique index and the notification `dedupe_key`. Inserts use `INSERT … ON CONFLICT DO NOTHING`.
-- Backfill (FR-27) reuses the generator with a start date in the past, writing `status = paid`, `source = backfill`.
+- **Load.** Today comes from the injected clock, in Europe/Madrid. The job reads the settings and `last_scheduler_run`.
+- **Payment planning**, one transaction per subscription. The job loads the subscription, its price history and its payments, then calls `plan_payments(today, settings, subscription, price_history, payments, backfill=false)`. The planner returns the new status and the payments to insert, update and delete, worked out in BR-18 order: activate an ended trial (BR-12), remove payments that a pause, cancellation or archive cuts off (BR-10, BR-27), reprice (BR-9), generate up to the horizon (BR-6 to BR-8), auto-confirm (BR-11). The job saves exactly that.
+- **Reminder planning**, one transaction. The job loads the subscriptions, their payments and the existing dedupe keys, then calls `plan_reminders(last_run_date, today, settings, subscriptions, payments, existing_dedupe_keys)` (BR-13 to BR-17, BR-19, BR-23, BR-24, BR-27). It inserts the returned notifications with `INSERT … ON CONFLICT DO NOTHING`.
+- **Finish.** It stores `last_scheduler_run`.
+- **Use cases.** Create (with or without backfill, FR-27), pause, resume, cancel, reactivate, archive, unarchive and price change each call `plan_payments` in their own transaction, after changing the subscription. Their payments are right immediately, without waiting for the next run. Resume and reactivate set `resumed_on`; unarchive sets `unarchived_on`.
+- **Planners.** Pure functions in `billing`. They take plain values (dates, cents, statuses) and return plain values; they never read the clock or the database. Their cases are `contract/cases/payment-generation.json` and `contract/cases/reminders.json`.
+- **Idempotency** comes from the database: the payment unique index and the notification `dedupe_key`. The planners are also idempotent, so a second run returns no changes (BR-20).
 - Only one backend runs at a time (Compose profiles), so there is no need for a distributed lock.
 
 ### Privacy lock
@@ -507,7 +516,7 @@ Testing priority is **end to end > integration > unit**, on a base of static ana
 
 **Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{now}`, a UTC timestamp; "today" is its date in Europe/Madrid, and the time of day drives idle-lock tests). Tests set the clock, call `POST /admin/run-scheduler`, and check payments and notifications. POST /admin/reset empties all tables, re-seeds the catalogue and restores the default settings so every test starts from a fresh database. All three test endpoints return 404 outside test mode.
 
-**Business-rule cases.** `contract/cases/*.json` hold the BR-1/BR-2, BR-4/BR-5/BR-22 and BR-26 cases (format in `contract/cases/README.md`), validated against `contract/cases/schema/` by `just lint`. Payment generation and reminders have no case files yet: their open questions come first.
+**Business-rule cases.** `contract/cases/*.json` hold the cases for billing dates, cost normalization, allocation, payment planning and reminder planning (format, rules per file and how to compute each in `contract/cases/README.md`), validated against `contract/cases/schema/` by `just lint`.
 
 **When suites run.** Static checks and the API suite run on every push, against both backends. The full browser suite runs only on main and the staging branch.
 
