@@ -412,6 +412,25 @@ Both backends use the same four layers and the same module names, so code can be
 
 Time is injected everywhere (a `Clock` in Java, a `today()` provider in Python), so tests can pin "today" and the scheduler can be tested across months.
 
+### Billing core
+
+The billing core is split the same way in both backends. A Python module matches a Java class with static functions, together with the plain domain types it takes and returns (frozen dataclasses and `StrEnum`s in Python; records and enums in Java). Nothing in it imports web, ORM or framework code, and "today" is always a parameter.
+
+| Python `subtrack.billing` | Java `dev.subtrack.billing` | Functions |
+| --- | --- | --- |
+| `interval` | `Interval`, `IntervalUnit` | `is_yearly_or_longer` / `isYearlyOrLonger` |
+| `dates` | `BillingDates` | `billing_date`, `billing_dates`, `billing_dates_between` |
+| `costs` | `Costs`, `Fraction` | `monthly_equivalent`, `yearly_equivalent`, `round_half_up`, `floor_cents` |
+| `allocation` | `Allocations`, `PartKey` | `allocate` |
+| `payments` | `PaymentPlanner` | `plan_payments`, `price_in_force` |
+| `reminders` | `ReminderPlanner` | `plan_reminders`, `dedupe_key` |
+| `errors` | `BillingInputException`, `BillingErrorCode` | — |
+
+- **Exact arithmetic.** Derived money values are exact rationals: Python `fractions.Fraction`, Java a `Fraction` record over `BigInteger`. They are rounded once, half-up, at the end. `BigDecimal` is not used, because factors such as 365/12 have no exact decimal form.
+- **Calendar steps.** Python `dateutil.relativedelta` and Java `LocalDate.plusMonths` both clamp to the end of a shorter month. Each date is `anchor + n × interval`.
+- **Label order.** Allocation compares labels by Unicode code point. Java compares code-point arrays, not `String.compareTo`, which orders by UTF-16 unit.
+- **Invalid input** (an interval count below 1, a trial without a trial end date, a paused or cancelled subscription without its date, an empty price history) raises `BillingInputException` with a `BillingErrorCode`, never display text.
+
 | Concern | FastAPI | Spring Boot |
 | --- | --- | --- |
 | Routing | `APIRouter` per resource | `@RestController` per resource |
@@ -430,7 +449,7 @@ The scheduler job contains no business rules. It loads data, calls the pure plan
 
 - Runs once at startup, then every hour, and in test mode on `POST /admin/run-scheduler`.
 - **Load.** Today comes from the injected clock, in Europe/Madrid. The job reads the settings and `last_scheduler_run`.
-- **Payment planning**, one transaction per subscription. The job loads the subscription, its price history and its payments, then calls `plan_payments(today, settings, subscription, price_history, payments, backfill=false)`. The planner returns the new status and the payments to insert, update and delete, worked out in BR-18 order: activate an ended trial (BR-12), remove payments that a pause, cancellation or archive cuts off (BR-10, BR-27), reprice (BR-9), generate up to the horizon (BR-6 to BR-8), auto-confirm (BR-11). The job saves exactly that.
+- **Payment planning**, one transaction per subscription. The job loads the subscription, its price history and its payments, then calls `plan_payments(today, settings, subscription, price_history, payments, backfill=false)`. The planner returns a `PaymentPlan`: the new status, the full set of payments afterwards (new ones have no id and are the inserts), `updated_ids` and `deleted_ids`. Its changes are worked out in BR-18 order: activate an ended trial (BR-12), remove payments that a pause, cancellation or archive cuts off (BR-10, BR-27), reprice (BR-9), generate up to the horizon (BR-6 to BR-8), auto-confirm (BR-11). The job saves exactly that.
 - **Reminder planning**, one transaction. The job loads the subscriptions, their payments and the existing dedupe keys, then calls `plan_reminders(last_run_date, today, settings, subscriptions, payments, existing_dedupe_keys)` (BR-13 to BR-17, BR-19, BR-23, BR-24, BR-27). It inserts the returned notifications with `INSERT … ON CONFLICT DO NOTHING`.
 - **Finish.** It stores `last_scheduler_run`.
 - **Use cases.** Create (with or without backfill, FR-27), pause, resume, cancel, reactivate, archive, unarchive and price change each call `plan_payments` in their own transaction, after changing the subscription. Their payments are right immediately, without waiting for the next run. Resume and reactivate set `resumed_on`; unarchive sets `unarchived_on`.
@@ -530,7 +549,7 @@ Testing priority is **end to end > integration > unit**, on a base of static ana
 | Static | always on | Types, lint, format on every commit | tsc, ESLint, Prettier, Ruff, type checker, Spotless |
 | End to end | most | User flows in the browser against the full Compose stack, run once per profile (fastapi, spring) | Playwright |
 | Integration (API) | second | One HTTP suite written once in TypeScript against `/api/v1`, run against each backend on a fresh database; covers every BR table through the API. Plus contract checks against `openapi.yaml` | Playwright request fixture, Schemathesis |
-| Unit | least | Billing core date math (BR-1 to BR-5) from the shared JSON cases; a few hooks or components with real logic | pytest, JUnit 5, Vitest |
+| Unit | least | Billing core from every shared JSON case file (dates, costs, allocation, payment and reminder planning), each case its own parameterized test named by id and rules; a few hooks or components with real logic | pytest, JUnit 5, Vitest |
 
 **Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{now}`, a UTC timestamp; "today" is its date in Europe/Madrid, and the time of day drives idle-lock tests). Tests set the clock, call `POST /admin/run-scheduler`, and check payments and notifications. POST /admin/reset empties all tables, re-seeds the catalogue and restores the default settings so every test starts from a fresh database. All three test endpoints return 404 outside test mode.
 

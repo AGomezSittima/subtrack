@@ -62,9 +62,11 @@ jobs:
               - *shared
               - "backend-fastapi/**"
               - "db/**"
+              - "contract/cases/**"
             spring:
               - *shared
               - "backend-spring/**"
+              - "contract/cases/**"
 
   js:
     name: frontend, e2e, contract
