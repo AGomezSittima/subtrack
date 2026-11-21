@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cost-normalization.schema.json",
+  "title": "BR-4, BR-5, BR-22: monthly and yearly equivalents of one price",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "description", "rules", "cases"],
+  "properties": {
+    "$schema": {
+      "const": "./schema/cost-normalization.schema.json"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rules": {
+      "description": "The rules this file covers. Each one appears in at least one case.",
+      "const": ["BR-4", "BR-5", "BR-22"]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rules", "description", "input", "expected"],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/caseId"
+          },
+          "rules": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/ruleId"
+                },
+                {
+                  "enum": ["BR-4", "BR-5", "BR-22"]
+                }
+              ]
+            }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["price_cents", "interval"],
+            "properties": {
+              "price_cents": {
+                "$ref": "common.schema.json#/$defs/cents"
+              },
+              "interval": {
+                "$ref": "common.schema.json#/$defs/interval"
+              }
+            }
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["monthly_cents", "yearly_cents"],
+            "properties": {
+              "monthly_cents": {
+                "$ref": "common.schema.json#/$defs/cents",
+                "description": "Exact monthly equivalent, rounded once, half-up."
+              },
+              "yearly_cents": {
+                "$ref": "common.schema.json#/$defs/cents",
+                "description": "Exact monthly equivalent × 12, rounded once, half-up."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

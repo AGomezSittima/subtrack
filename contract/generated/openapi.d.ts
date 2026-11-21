@@ -24,10 +24,808 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Privacy lock state
+         * @description Public endpoint. Returns only the lock state, never any other data.
+         */
+        get: operations["getAuthStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock with the passcode
+         * @description Public. On success, sets the `subtrack_session` cookie and resets the failed-attempt counter. From the 6th consecutive failure, attempts answer 429 until `retry_after` (2^(n−5) s after the n-th failure, at most 15 min).
+         */
+        post: operations["unlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock now
+         * @description Deletes this session and clears the cookie. Without a passcode it does nothing.
+         */
+        post: operations["lock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/passcode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or change the passcode
+         * @description Sets the first passcode, or changes it when `current` matches. A missing or wrong `current` answers 401 `invalid-passcode` and counts as a failed attempt. On success, other sessions are deleted and this request gets a fresh session cookie.
+         */
+        put: operations["setPasscode"];
+        post?: never;
+        /**
+         * Remove the passcode
+         * @description Removes the passcode when `current` matches, deletes every session and clears the cookie. A wrong `current` counts as a failed attempt.
+         */
+        delete: operations["removePasscode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List catalogue services
+         * @description Catalogue entries sorted by name, optionally filtered by a search term.
+         */
+        get: operations["listCatalogServices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List subscriptions
+         * @description Without `archived=true`, only subscriptions that aren't archived; with it, only archived ones.
+         */
+        get: operations["listSubscriptions"];
+        put?: never;
+        /**
+         * Create a subscription
+         * @description Creates a subscription and its first price-history entry, effective from the anchor date. With `backfill: true`, every billing date before today is recorded as paid at the price in force.
+         */
+        post: operations["createSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a subscription
+         * @description One subscription, archived or not.
+         */
+        get: operations["getSubscription"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a subscription
+         * @description Deletes the subscription with its price history and payments. Its notifications stay, unlinked.
+         */
+        delete: operations["deleteSubscription"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit a subscription
+         * @description Changes the fields sent; `null` clears a nullable field. Price, status and archive change only through their own endpoints. `ends_on` is editable only while cancelled (otherwise 422 `invalid` on `/ends_on`).
+         */
+        patch: operations["updateSubscription"];
+        trace?: never;
+    };
+    "/subscriptions/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause, resume, cancel or activate
+         * @description Changes the status. Allowed transitions:
+         *
+         *     | From | To |
+         *     | --- | --- |
+         *     | trial | active (activate early), paused, cancelled |
+         *     | active | paused, cancelled |
+         *     | paused | active (resume), cancelled |
+         *     | cancelled | active (reactivate) |
+         *
+         *     Any other transition, including to the current status, answers 409
+         *     `invalid-status-transition`.
+         */
+        post: operations["changeSubscriptionStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a subscription
+         * @description Hides the subscription from lists, totals and reminders; its payments stay in spending history. Idempotent.
+         */
+        post: operations["archiveSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore an archived subscription
+         * @description Restores the subscription to lists, totals and reminders. Idempotent.
+         */
+        post: operations["unarchiveSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subscriptions/{id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List price history
+         * @description The subscription's price-history entries, oldest effective date first.
+         */
+        get: operations["listPriceChanges"];
+        put?: never;
+        /**
+         * Record a price change
+         * @description Adds a price-history entry. `expected` payments due on or after `effective_from` take the new price; other payments never change. A second entry for the same date answers 409 `price-change-exists`.
+         */
+        post: operations["createPriceChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List payments
+         * @description Payments of every subscription, archived included, by due date descending, then id descending. `from` and `to` filter the due date, both inclusive.
+         */
+        get: operations["listPayments"];
+        put?: never;
+        /**
+         * Record a one-off payment
+         * @description Records a payment outside the schedule, stored as `paid` with source `manual`, `due_date` = `paid_date` and `expected_cents` = `paid_cents`. Manual payments may share a date.
+         */
+        post: operations["createManualPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a payment's note or amounts
+         * @description Changes the fields sent; omitted fields stay as they are. `paid_cents` and `paid_date` can be
+         *     edited only on a paid payment (otherwise 409 `payment-not-paid`).
+         */
+        patch: operations["updatePayment"];
+        trace?: never;
+    };
+    "/payments/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a payment as paid
+         * @description Marks an `expected` payment as paid. `paid_cents` defaults to `expected_cents` and `paid_date` to the due date. Otherwise 409 `payment-not-expected`.
+         */
+        post: operations["confirmPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a payment as skipped
+         * @description Marks an `expected` payment as skipped; otherwise 409 `payment-not-expected`.
+         */
+        post: operations["skipPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}/fail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a payment as failed
+         * @description Marks an `expected` payment as failed; otherwise 409 `payment-not-expected`.
+         */
+        post: operations["failPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List notifications
+         * @description Notifications newest first (trigger date descending, then id descending).
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unread badge count
+         * @description Polled by the frontend every 60 s with `X-Subtrack-Background: 1`.
+         */
+        get: operations["getUnreadNotificationCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark one notification as read
+         * @description Marking a read notification again changes nothing.
+         */
+        post: operations["markNotificationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark every notification as read
+         * @description Sets `read_at` on every unread notification.
+         */
+        post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stats/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly and yearly totals
+         * @description Monthly and yearly equivalents of the subscriptions that will be charged again, archived excluded. Each total is the exact sum, rounded once.
+         */
+        get: operations["getStatsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stats/by-category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly equivalent per category
+         * @description The summary's monthly total split by category, ordered by exact monthly equivalent descending, then category code. Parts are allocated by largest remainder, so they add up to `total_monthly_equivalent_cents`.
+         */
+        get: operations["getStatsByCategory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stats/by-payment-method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly equivalent per payment method
+         * @description As `/stats/by-category`, split by payment method label; subscriptions without one are grouped under `null`.
+         */
+        get: operations["getStatsByPaymentMethod"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stats/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Upcoming payments
+         * @description `expected` payments of non-archived subscriptions due from today to today + `days`, both inclusive, by due date. The total is a plain sum.
+         */
+        get: operations["getUpcomingPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stats/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Planned vs actual per month
+         * @description One item per month from `from` to `to`, both inclusive, empty months included; payments (archived included) are grouped by due-date month. At most 120 months; `to` before `from` answers 422 `invalid` on `/to`.
+         */
+        get: operations["getMonthlyStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All settings
+         * @description Every user setting. Never includes the passcode, attempt counters or scheduler state.
+         */
+        get: operations["getSettings"];
+        /**
+         * Replace all settings
+         * @description Replaces every user setting with the object sent. The passcode changes only through `/auth/passcode`.
+         */
+        put: operations["updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export all data
+         * @description Downloads the data as an attachment. `json` (default): the versioned backup `Export`. `csv`: one row per payment for spreadsheets, not importable; columns in docs/sdd.md, Export format.
+         */
+        get: operations["exportData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a JSON export
+         * @description Replaces all data with the file's contents in one transaction, keeping row ids. The passcode, sessions, attempt counters and `last_scheduler_run` are never touched. Older `format_version`s are converted, an unknown one answers 422 `unsupported-format-version`, and `data` is validated against `ExportData` for its version.
+         */
+        post: operations["importData"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/run-scheduler": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run the scheduler job now (test mode only)
+         * @description **Test mode only; 404 otherwise.** Runs the scheduler job synchronously.
+         */
+        post: operations["runScheduler"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/clock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the clock (test mode only)
+         * @description **Test mode only; 404 otherwise.** Pins the backend clock to `now`. It stays there until set
+         *     again; "today" is the date of `now` in Europe/Madrid.
+         */
+        post: operations["setClock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset to a fresh database (test mode only)
+         * @description **Test mode only; 404 otherwise.** Restores a fresh database: empty tables, the seeded catalogue and default settings.
+         */
+        post: operations["resetData"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Format: int64 */
+        Id: number;
+        /**
+         * Format: int64
+         * @description Amount in integer euro cents.
+         * @example 1199
+         */
+        Cents: number;
+        /**
+         * Format: date
+         * @description Calendar date, `YYYY-MM-DD`.
+         * @example 2026-12-01
+         */
+        Date: string;
+        /**
+         * Format: date-time
+         * @description UTC instant with milliseconds and `Z`.
+         * @example 2026-11-10T15:18:00.000Z
+         */
+        Timestamp: string;
+        /**
+         * @description Calendar month, `YYYY-MM`.
+         * @example 2026-11
+         */
+        Month: string;
+        /** @description How many interval units between billing dates. */
+        IntervalCount: number;
+        /** @enum {string} */
+        IntervalUnit: "day" | "week" | "month" | "year";
+        /**
+         * @description Category code; the frontend translates it.
+         * @enum {string}
+         */
+        Category: "music" | "video" | "vpn" | "cloud" | "ai" | "software" | "domains" | "other";
+        /** @enum {string} */
+        SubscriptionStatus: "trial" | "active" | "paused" | "cancelled";
+        /** @enum {string} */
+        PaymentStatus: "expected" | "paid" | "skipped" | "failed";
+        /** @enum {string} */
+        PaymentSource: "scheduled" | "backfill" | "manual";
+        /** @enum {string} */
+        NotificationType: "renewal" | "trial_ending" | "yearly_renewal" | "overdue" | "ending";
+        /**
+         * @description `overdue` is critical; `ending` and `trial_ending` are warning; `renewal` and `yearly_renewal` are info.
+         * @enum {string}
+         */
+        Severity: "info" | "warning" | "critical";
+        /**
+         * @description When the app locks while a passcode is set.
+         * @enum {string}
+         */
+        LockPolicy: "on_open" | "idle_5" | "idle_15" | "idle_30" | "idle_60" | "manual";
+        /** @description Lead time in days before an event. */
+        ReminderDays: number;
+        ServiceName: string;
+        PlanName: string;
+        /** @description Free label such as `Visa ··4417`. */
+        PaymentMethodLabel: string;
+        WebUrl: string;
+        Note: string;
+        /** @description At least 6 letters or digits. */
+        Passcode: string;
+        /**
+         * @description Stable problem code the frontend translates; `title` and `detail` are never shown. Statuses and meanings are in docs/sdd.md, Errors.
+         * @enum {string}
+         */
+        ProblemType: "urn:subtrack:problem:malformed-request" | "urn:subtrack:problem:unauthorized" | "urn:subtrack:problem:invalid-passcode" | "urn:subtrack:problem:not-found" | "urn:subtrack:problem:method-not-allowed" | "urn:subtrack:problem:passcode-not-set" | "urn:subtrack:problem:invalid-status-transition" | "urn:subtrack:problem:payment-not-expected" | "urn:subtrack:problem:payment-not-paid" | "urn:subtrack:problem:price-change-exists" | "urn:subtrack:problem:unsupported-media-type" | "urn:subtrack:problem:validation-error" | "urn:subtrack:problem:unsupported-format-version" | "urn:subtrack:problem:too-many-attempts" | "urn:subtrack:problem:internal-error";
+        /** @description RFC 9457 problem details. */
+        Problem: {
+            type: components["schemas"]["ProblemType"];
+            /**
+             * @description Constant English summary of the type, for developers and logs. Never displayed.
+             * @example Validation error
+             */
+            title: string;
+            /** @description The HTTP status code. */
+            status: number;
+            /** @description Developer-facing English explanation of this occurrence. Never displayed. */
+            detail?: string;
+            /** @description Only with `validation-error`; one entry per failed check. */
+            errors?: components["schemas"]["ValidationIssue"][];
+            /** @description Only with `too-many-attempts`; when the next attempt is accepted. */
+            retry_after?: components["schemas"]["Timestamp"];
+        };
+        ValidationIssue: {
+            /** @enum {string} */
+            location: "body" | "query" | "path";
+            /**
+             * @description JSON Pointer (RFC 6901) to the offending value: within the body (`/price_cents`,
+             *     `/data/payments/3/status`), or `/<name>` for a query or path parameter. `""` for the
+             *     whole body.
+             * @example /price_cents
+             */
+            pointer: string;
+            /**
+             * @description What failed: `required`, `unknown_property`, `type`, `format` (date, timestamp or month), a JSON Schema keyword (`pattern`, `enum`, `minimum`, `maximum`, `min_length`, `max_length`), or `invalid` for a cross-field rule the operation describes.
+             * @enum {string}
+             */
+            code: "required" | "unknown_property" | "type" | "format" | "pattern" | "enum" | "minimum" | "maximum" | "min_length" | "max_length" | "invalid";
+            /** @description The limit that failed, for the message (e.g. `{"minimum": 1}`). */
+            params?: {
+                minimum?: number;
+                maximum?: number;
+                min_length?: number;
+                max_length?: number;
+                allowed?: string[];
+            };
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -40,16 +838,525 @@ export interface components {
             version: string;
             /**
              * Format: date-time
-             * @description When the scheduler job (run at startup and then hourly) last finished (UTC), or null if it has never run.
+             * @description When the scheduler job last finished, or null if it never ran.
              * @example 2026-11-12T18:10:00.000Z
              */
             last_scheduler_run: string | null;
         };
+        AuthStatus: {
+            passcode_enabled: boolean;
+            /** @description True when no passcode is set, or this request has a valid session. */
+            unlocked: boolean;
+            lock_policy: components["schemas"]["LockPolicy"];
+            /** @description Set while unlocking is refused after too many wrong attempts. */
+            retry_after: components["schemas"]["Timestamp"] | null;
+        };
+        UnlockRequest: {
+            passcode: string;
+        };
+        PasscodeSet: {
+            /** @description Required when a passcode is already set. */
+            current?: string;
+            new: components["schemas"]["Passcode"];
+        };
+        PasscodeRemove: {
+            current: string;
+        };
+        CatalogPlan: {
+            plan: components["schemas"]["PlanName"];
+            price_cents: components["schemas"]["Cents"];
+            interval_count: components["schemas"]["IntervalCount"];
+            interval_unit: components["schemas"]["IntervalUnit"];
+        };
+        CatalogService: {
+            id: components["schemas"]["Id"];
+            name: components["schemas"]["ServiceName"];
+            /**
+             * @description Website domain, used to load the logo.
+             * @example spotify.com
+             */
+            domain: string;
+            category: components["schemas"]["Category"];
+            /** @description Typical plans with price and interval. */
+            plans: components["schemas"]["CatalogPlan"][];
+        };
+        CatalogServiceList: {
+            items: components["schemas"]["CatalogService"][];
+        };
+        Subscription: {
+            id: components["schemas"]["Id"];
+            /** @description The catalogue entry it was created from, or null for a free-text service. */
+            catalog_service_id: components["schemas"]["Id"] | null;
+            name: components["schemas"]["ServiceName"];
+            category: components["schemas"]["Category"];
+            plan_name: components["schemas"]["PlanName"] | null;
+            /** @description Current price (the latest price-history entry). */
+            price_cents: components["schemas"]["Cents"];
+            interval_count: components["schemas"]["IntervalCount"];
+            interval_unit: components["schemas"]["IntervalUnit"];
+            /** @description First billing date; every billing date derives from it. */
+            anchor_date: components["schemas"]["Date"];
+            status: components["schemas"]["SubscriptionStatus"];
+            trial_end_date: components["schemas"]["Date"] | null;
+            /** @description Date it was cancelled; set while cancelled. */
+            cancelled_at: components["schemas"]["Date"] | null;
+            /** @description Date it was paused; set while paused. */
+            paused_at: components["schemas"]["Date"] | null;
+            /** @description Last day of access after cancelling; set while cancelled. */
+            ends_on: components["schemas"]["Date"] | null;
+            payment_method: components["schemas"]["PaymentMethodLabel"] | null;
+            /** @description Expected payments become paid on their due date. */
+            auto_confirm: boolean;
+            /** @description Renewal reminder lead time; null = the global default, -1 = off. */
+            reminder_days: number | null;
+            website: components["schemas"]["WebUrl"] | null;
+            cancel_url: components["schemas"]["WebUrl"] | null;
+            notes: components["schemas"]["Note"] | null;
+            /** @description When it was archived, or null. */
+            archived_at: components["schemas"]["Timestamp"] | null;
+            /** @description Next billing date on or after today, or null when it won't be charged again. */
+            next_renewal_date: components["schemas"]["Date"] | null;
+            /** @description Exact monthly equivalent of the current price, rounded once. */
+            monthly_equivalent_cents: components["schemas"]["Cents"];
+            /** @description Exact monthly equivalent × 12, rounded once. */
+            yearly_equivalent_cents: components["schemas"]["Cents"];
+            /** @description How many payments it has, of any status. */
+            payment_count: number;
+            /** @description Sum of `paid_cents` of its paid payments. */
+            total_paid_cents: components["schemas"]["Cents"];
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        SubscriptionList: {
+            items: components["schemas"]["Subscription"][];
+        };
+        SubscriptionCreate: {
+            catalog_service_id?: components["schemas"]["Id"] | null;
+            name: components["schemas"]["ServiceName"];
+            category: components["schemas"]["Category"];
+            plan_name?: components["schemas"]["PlanName"] | null;
+            price_cents: components["schemas"]["Cents"];
+            interval_count: components["schemas"]["IntervalCount"];
+            interval_unit: components["schemas"]["IntervalUnit"];
+            anchor_date: components["schemas"]["Date"];
+            /**
+             * @description A new subscription starts as a trial or active.
+             * @default active
+             * @enum {string}
+             */
+            status: "trial" | "active";
+            trial_end_date?: components["schemas"]["Date"] | null;
+            payment_method?: components["schemas"]["PaymentMethodLabel"] | null;
+            /** @default false */
+            auto_confirm: boolean;
+            /** @description null = the global default, -1 = off. */
+            reminder_days?: number | null;
+            website?: components["schemas"]["WebUrl"] | null;
+            cancel_url?: components["schemas"]["WebUrl"] | null;
+            notes?: components["schemas"]["Note"] | null;
+            /**
+             * @description Record every billing date before today as paid at the price in force.
+             * @default false
+             */
+            backfill: boolean;
+        };
+        /** @description The fields to change; at least one. */
+        SubscriptionUpdate: {
+            catalog_service_id?: components["schemas"]["Id"] | null;
+            name?: components["schemas"]["ServiceName"];
+            category?: components["schemas"]["Category"];
+            plan_name?: components["schemas"]["PlanName"] | null;
+            interval_count?: components["schemas"]["IntervalCount"];
+            interval_unit?: components["schemas"]["IntervalUnit"];
+            anchor_date?: components["schemas"]["Date"];
+            trial_end_date?: components["schemas"]["Date"] | null;
+            /** @description Only while cancelled. */
+            ends_on?: components["schemas"]["Date"];
+            payment_method?: components["schemas"]["PaymentMethodLabel"] | null;
+            auto_confirm?: boolean;
+            reminder_days?: number | null;
+            website?: components["schemas"]["WebUrl"] | null;
+            cancel_url?: components["schemas"]["WebUrl"] | null;
+            notes?: components["schemas"]["Note"] | null;
+        };
+        SubscriptionStatusChange: {
+            /**
+             * @description `active` activates a trial, resumes a paused subscription or reactivates a cancelled one.
+             * @enum {string}
+             */
+            status: "active" | "paused" | "cancelled";
+            /** @description Pause or cancellation date; defaults to today. Not allowed with `active` (422 `invalid`). */
+            date?: components["schemas"]["Date"];
+            /** @description Last day of access; only with `cancelled`. Defaults to the next billing date after the cancellation date. */
+            ends_on?: components["schemas"]["Date"];
+        };
+        PriceChange: {
+            id: components["schemas"]["Id"];
+            subscription_id: components["schemas"]["Id"];
+            price_cents: components["schemas"]["Cents"];
+            effective_from: components["schemas"]["Date"];
+            created_at: components["schemas"]["Timestamp"];
+        };
+        PriceChangeList: {
+            items: components["schemas"]["PriceChange"][];
+        };
+        PriceChangeCreate: {
+            price_cents: components["schemas"]["Cents"];
+            effective_from: components["schemas"]["Date"];
+        };
+        Payment: {
+            id: components["schemas"]["Id"];
+            subscription_id: components["schemas"]["Id"];
+            /** @description Current name of the subscription, for lists across subscriptions. */
+            subscription_name: components["schemas"]["ServiceName"];
+            due_date: components["schemas"]["Date"];
+            /** @description Price in force on the due date. */
+            expected_cents: components["schemas"]["Cents"];
+            /** @description Set exactly when the payment is paid. */
+            paid_cents: components["schemas"]["Cents"] | null;
+            /** @description Set exactly when the payment is paid. */
+            paid_date: components["schemas"]["Date"] | null;
+            status: components["schemas"]["PaymentStatus"];
+            source: components["schemas"]["PaymentSource"];
+            note: components["schemas"]["Note"] | null;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        PaymentList: {
+            items: components["schemas"]["Payment"][];
+        };
+        ManualPaymentCreate: {
+            /** @description An unknown subscription answers 404. */
+            subscription_id: components["schemas"]["Id"];
+            paid_cents: components["schemas"]["Cents"];
+            paid_date: components["schemas"]["Date"];
+            note?: components["schemas"]["Note"] | null;
+        };
+        /** @description The fields to change; at least one. */
+        PaymentUpdate: {
+            expected_cents?: components["schemas"]["Cents"];
+            /** @description Only on a paid payment. */
+            paid_cents?: components["schemas"]["Cents"];
+            /** @description Only on a paid payment. */
+            paid_date?: components["schemas"]["Date"];
+            note?: components["schemas"]["Note"] | null;
+        };
+        PaymentConfirm: {
+            /** @description Defaults to `expected_cents`. */
+            paid_cents?: components["schemas"]["Cents"];
+            /** @description Defaults to the due date. */
+            paid_date?: components["schemas"]["Date"];
+            note?: components["schemas"]["Note"] | null;
+        };
+        /** @description Optional note when skipping or failing a payment; `{}` keeps the note as it is. */
+        PaymentResolve: {
+            note?: components["schemas"]["Note"] | null;
+        };
+        Notification: {
+            id: components["schemas"]["Id"];
+            type: components["schemas"]["NotificationType"];
+            severity: components["schemas"]["Severity"];
+            /** @description Null once the subscription is deleted. */
+            subscription_id: components["schemas"]["Id"] | null;
+            /** @description The related payment (renewal, yearly renewal, overdue); null otherwise or once deleted. */
+            payment_id: components["schemas"]["Id"] | null;
+            /** @description The day it was due to fire. */
+            trigger_date: components["schemas"]["Date"];
+            params: components["schemas"]["NotificationParams"];
+            read_at: components["schemas"]["Timestamp"] | null;
+            created_at: components["schemas"]["Timestamp"];
+        };
+        /** @description Captured when the notification fired. `date` is the due date, the trial end date (`trial_ending`) or `ends_on` (`ending`); `amount_cents` is the expected amount, absent for `trial_ending` and `ending`. */
+        NotificationParams: {
+            name: components["schemas"]["ServiceName"];
+            date: components["schemas"]["Date"];
+            amount_cents?: components["schemas"]["Cents"];
+        };
+        NotificationList: {
+            items: components["schemas"]["Notification"][];
+        };
+        UnreadCount: {
+            count: number;
+        };
+        StatsSummary: {
+            monthly_equivalent_cents: components["schemas"]["Cents"];
+            /** @description Exact monthly total × 12, rounded once. */
+            yearly_equivalent_cents: components["schemas"]["Cents"];
+            /** @description How many subscriptions the totals include. */
+            active_count: number;
+        };
+        CategoryBreakdown: {
+            /** @description Equals `monthly_equivalent_cents` of `/stats/summary`. */
+            total_monthly_equivalent_cents: components["schemas"]["Cents"];
+            items: {
+                category: components["schemas"]["Category"];
+                monthly_equivalent_cents: components["schemas"]["Cents"];
+            }[];
+        };
+        PaymentMethodBreakdown: {
+            /** @description Equals `monthly_equivalent_cents` of `/stats/summary`. */
+            total_monthly_equivalent_cents: components["schemas"]["Cents"];
+            items: {
+                /** @description The label, or null for subscriptions without one. */
+                payment_method: components["schemas"]["PaymentMethodLabel"] | null;
+                monthly_equivalent_cents: components["schemas"]["Cents"];
+            }[];
+        };
+        UpcomingPayments: {
+            /** @description Today. */
+            from: components["schemas"]["Date"];
+            /** @description Today + `days`. */
+            to: components["schemas"]["Date"];
+            /** @description Sum of the items' `expected_cents`. */
+            total_cents: components["schemas"]["Cents"];
+            items: components["schemas"]["Payment"][];
+        };
+        MonthlyStats: {
+            items: components["schemas"]["MonthStats"][];
+        };
+        MonthStats: {
+            month: components["schemas"]["Month"];
+            /** @description Sum of `expected_cents` of every payment due in the month, whatever its status (projected spend for coming months). */
+            planned_cents: components["schemas"]["Cents"];
+            /** @description Sum of `paid_cents` of the paid payments due in the month. */
+            actual_cents: components["schemas"]["Cents"];
+            skipped_count: number;
+            failed_count: number;
+        };
+        Settings: {
+            /** @description Renewal reminder lead time. */
+            default_reminder_days: components["schemas"]["ReminderDays"];
+            /** @description Trial-ending lead time. */
+            trial_reminder_days: components["schemas"]["ReminderDays"];
+            /** @description Lead time for yearly-or-longer intervals. */
+            yearly_reminder_days: components["schemas"]["ReminderDays"];
+            /** @description Lead time before a cancelled subscription ends. */
+            ending_reminder_days: components["schemas"]["ReminderDays"];
+            /** @description How far ahead expected payments are generated. */
+            payment_horizon_days: number;
+            /** @description Logo.dev publishable key, safe in client code; null = monograms only. */
+            logo_dev_token: string | null;
+            /** @description UI language; null = follow the browser. */
+            locale: ("en" | "es") | null;
+            /** @enum {string} */
+            theme: "system" | "light" | "dark";
+            /** @enum {string} */
+            font_size: "sm" | "md" | "lg";
+            /** @enum {string} */
+            reduced_motion: "system" | "always";
+            /** @description First day of the week, 1 = Monday … 7 = Sunday. */
+            week_start: number;
+            lock_policy: components["schemas"]["LockPolicy"];
+        };
+        ClockSet: {
+            now: components["schemas"]["Timestamp"];
+        };
+        Export: {
+            /**
+             * @description Changes only when the file structure changes.
+             * @constant
+             */
+            format_version: 1;
+            exported_at: components["schemas"]["Timestamp"];
+            /** @example 0.1.0 */
+            app_version: string;
+            data: components["schemas"]["ExportData"];
+        };
+        /** @description An export file of any format version; `data` is checked against that version's structure. */
+        ImportFile: {
+            format_version: number;
+            exported_at: components["schemas"]["Timestamp"];
+            app_version: string;
+            /** @description `ExportData` for format version 1. */
+            data: Record<string, never>;
+        };
+        ImportResult: {
+            subscriptions: number;
+            price_history: number;
+            payments: number;
+            notifications: number;
+        };
+        ExportData: {
+            subscriptions: components["schemas"]["ExportSubscription"][];
+            price_history: components["schemas"]["ExportPriceChange"][];
+            payments: components["schemas"]["ExportPayment"][];
+            notifications: components["schemas"]["ExportNotification"][];
+            settings: components["schemas"]["ExportSettings"];
+        };
+        ExportSubscription: {
+            id: components["schemas"]["Id"];
+            catalog_service_id: components["schemas"]["Id"] | null;
+            name: components["schemas"]["ServiceName"];
+            category: components["schemas"]["Category"];
+            plan_name: components["schemas"]["PlanName"] | null;
+            price_cents: components["schemas"]["Cents"];
+            interval_count: components["schemas"]["IntervalCount"];
+            interval_unit: components["schemas"]["IntervalUnit"];
+            anchor_date: components["schemas"]["Date"];
+            status: components["schemas"]["SubscriptionStatus"];
+            trial_end_date: components["schemas"]["Date"] | null;
+            cancelled_at: components["schemas"]["Date"] | null;
+            paused_at: components["schemas"]["Date"] | null;
+            ends_on: components["schemas"]["Date"] | null;
+            payment_method: components["schemas"]["PaymentMethodLabel"] | null;
+            auto_confirm: boolean;
+            reminder_days: number | null;
+            website: components["schemas"]["WebUrl"] | null;
+            cancel_url: components["schemas"]["WebUrl"] | null;
+            notes: components["schemas"]["Note"] | null;
+            archived_at: components["schemas"]["Timestamp"] | null;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        ExportPriceChange: {
+            id: components["schemas"]["Id"];
+            subscription_id: components["schemas"]["Id"];
+            price_cents: components["schemas"]["Cents"];
+            effective_from: components["schemas"]["Date"];
+            created_at: components["schemas"]["Timestamp"];
+        };
+        ExportPayment: {
+            id: components["schemas"]["Id"];
+            subscription_id: components["schemas"]["Id"];
+            due_date: components["schemas"]["Date"];
+            expected_cents: components["schemas"]["Cents"];
+            paid_cents: components["schemas"]["Cents"] | null;
+            paid_date: components["schemas"]["Date"] | null;
+            status: components["schemas"]["PaymentStatus"];
+            source: components["schemas"]["PaymentSource"];
+            note: components["schemas"]["Note"] | null;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        ExportNotification: {
+            id: components["schemas"]["Id"];
+            type: components["schemas"]["NotificationType"];
+            severity: components["schemas"]["Severity"];
+            subscription_id: components["schemas"]["Id"] | null;
+            payment_id: components["schemas"]["Id"] | null;
+            trigger_date: components["schemas"]["Date"];
+            dedupe_key: string;
+            params: components["schemas"]["NotificationParams"];
+            read_at: components["schemas"]["Timestamp"] | null;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        /** @description The user settings; never the passcode, attempt counters or `last_scheduler_run`. */
+        ExportSettings: {
+            default_reminder_days: components["schemas"]["ReminderDays"];
+            trial_reminder_days: components["schemas"]["ReminderDays"];
+            yearly_reminder_days: components["schemas"]["ReminderDays"];
+            ending_reminder_days: components["schemas"]["ReminderDays"];
+            payment_horizon_days: number;
+            logo_dev_token: string | null;
+            locale: ("en" | "es") | null;
+            /** @enum {string} */
+            theme: "system" | "light" | "dark";
+            /** @enum {string} */
+            font_size: "sm" | "md" | "lg";
+            /** @enum {string} */
+            reduced_motion: "system" | "always";
+            week_start: number;
+            lock_policy: components["schemas"]["LockPolicy"];
+        };
     };
-    responses: never;
-    parameters: never;
+    responses: {
+        /** @description The body is not valid JSON (`malformed-request`). */
+        MalformedRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description A passcode is set and the request has no valid session (`unauthorized`). */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The passcode is wrong (`invalid-passcode`); counts as a failed attempt. */
+        InvalidPasscode: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description No valid session (`unauthorized`), or `current` is missing or wrong (`invalid-passcode`). */
+        UnauthorizedOrInvalidPasscode: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description No such resource (`not-found`). */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The resource is not in a state that allows this (see the operation for the problem type). */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description No passcode is set (`passcode-not-set`). */
+        PasscodeNotSet: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The request is invalid (`validation-error`, with `errors[]`), or for `/import` an unknown format version (`unsupported-format-version`). */
+        ValidationFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Too many wrong passcodes; retry after `retry_after` (`too-many-attempts`). */
+        TooManyAttempts: {
+            headers: {
+                "Retry-After": components["headers"]["RetryAfter"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
+    parameters: {
+        /** @description Id of the resource. */
+        Id: components["schemas"]["Id"];
+    };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description `subtrack_session=<token>; HttpOnly; SameSite=Strict; Path=/api` */
+        SetSessionCookie: string;
+        /** @description `subtrack_session=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0` */
+        ClearSessionCookie: string;
+        /** @description Seconds until the next attempt is accepted (RFC 9110). */
+        RetryAfter: number;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -72,6 +1379,991 @@ export interface operations {
                     "application/json": components["schemas"]["Health"];
                 };
             };
+        };
+    };
+    getAuthStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current lock state for this request's session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthStatus"];
+                };
+            };
+        };
+    };
+    unlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnlockRequest"];
+            };
+        };
+        responses: {
+            /** @description Unlocked; the session cookie is set. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetSessionCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["InvalidPasscode"];
+            409: components["responses"]["PasscodeNotSet"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["TooManyAttempts"];
+        };
+    };
+    lock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Locked; the session cookie is cleared. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["ClearSessionCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    setPasscode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasscodeSet"];
+            };
+        };
+        responses: {
+            /** @description Passcode set; a fresh session cookie is set. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetSessionCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["UnauthorizedOrInvalidPasscode"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["TooManyAttempts"];
+        };
+    };
+    removePasscode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasscodeRemove"];
+            };
+        };
+        responses: {
+            /** @description Passcode removed; the session cookie is cleared. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["ClearSessionCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["UnauthorizedOrInvalidPasscode"];
+            409: components["responses"]["PasscodeNotSet"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["TooManyAttempts"];
+        };
+    };
+    listCatalogServices: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive substring of the service name. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching catalogue services. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogServiceList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listSubscriptions: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SubscriptionStatus"];
+                category?: components["schemas"]["Category"];
+                /** @description `false`: only subscriptions that are not archived. `true`: only archived ones. */
+                archived?: boolean;
+                /**
+                 * @description `next_renewal`: next renewal date ascending, subscriptions without one last.
+                 *     `cost`: monthly equivalent descending. `name`: name ascending, case-insensitive.
+                 *     Ties are broken by id ascending.
+                 */
+                sort?: "next_renewal" | "cost" | "name";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The matching subscriptions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    createSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionCreate"];
+            };
+        };
+        responses: {
+            /** @description The created subscription. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    getSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The subscription. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    deleteSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    updateSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated subscription. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    changeSubscriptionStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionStatusChange"];
+            };
+        };
+        responses: {
+            /** @description The subscription with its new status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    archiveSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archived subscription. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    unarchiveSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The restored subscription. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listPriceChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The price history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceChangeList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    createPriceChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceChangeCreate"];
+            };
+        };
+        responses: {
+            /** @description The new price-history entry. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceChange"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listPayments: {
+        parameters: {
+            query?: {
+                subscription_id?: components["schemas"]["Id"];
+                status?: components["schemas"]["PaymentStatus"];
+                /** @description Earliest due date, inclusive. */
+                from?: components["schemas"]["Date"];
+                /** @description Latest due date, inclusive. Must not be before `from` (422 `invalid` on `/to`). */
+                to?: components["schemas"]["Date"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The matching payments. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    createManualPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualPaymentCreate"];
+            };
+        };
+        responses: {
+            /** @description The recorded payment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    updatePayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated payment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    confirmPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentConfirm"];
+            };
+        };
+        responses: {
+            /** @description The paid payment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    skipPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentResolve"];
+            };
+        };
+        responses: {
+            /** @description The skipped payment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    failPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentResolve"];
+            };
+        };
+        responses: {
+            /** @description The failed payment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                /** @description `true`: only unread notifications. `false`: all of them. */
+                unread?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The notifications. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    getUnreadNotificationCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many notifications are unread. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCount"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked as read. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All marked as read. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getStatsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The totals. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatsSummary"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getStatsByCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The breakdown. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryBreakdown"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getStatsByPaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The breakdown. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodBreakdown"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getUpcomingPayments: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The upcoming payments and their total. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpcomingPayments"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    getMonthlyStats: {
+        parameters: {
+            query: {
+                from: components["schemas"]["Month"];
+                to: components["schemas"]["Month"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The months. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyStats"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    getSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Settings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Settings"];
+            };
+        };
+        responses: {
+            /** @description The saved settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Settings"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    exportData: {
+        parameters: {
+            query?: {
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The export file. */
+            200: {
+                headers: {
+                    /** @description `attachment; filename="subtrack-export-YYYY-MM-DD.json"` (or `.csv`), dated today. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Export"];
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    importData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportFile"];
+            };
+        };
+        responses: {
+            /** @description Imported; how many rows of each kind. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    runScheduler: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The job finished. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setClock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClockSet"];
+            };
+        };
+        responses: {
+            /** @description The clock is set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    resetData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The database is fresh. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

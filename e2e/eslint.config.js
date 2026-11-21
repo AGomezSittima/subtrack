@@ -1,4 +1,3 @@
-// ESLint finds problems; Prettier owns formatting (eslint-config-prettier goes last).
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import prettier from "eslint-config-prettier";
@@ -6,6 +5,8 @@ import playwright from "eslint-plugin-playwright";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import unusedImports from "eslint-plugin-unused-imports";
 import tseslint from "typescript-eslint";
+
+import { commentRules, subtrack } from "../tooling/eslint-plugin-subtrack.js";
 
 export default defineConfig(
   {
@@ -24,8 +25,10 @@ export default defineConfig(
     plugins: {
       "simple-import-sort": simpleImportSort,
       "unused-imports": unusedImports,
+      subtrack,
     },
     rules: {
+      ...commentRules,
       "simple-import-sort/imports": [
         "error",
         { groups: [["^\\u0000"], ["^node:", "^@?\\w"], ["^\\."]] },
@@ -47,7 +50,6 @@ export default defineConfig(
     files: ["api/**/*.ts", "ui/**/*.ts"],
     extends: [playwright.configs["flat/recommended"]],
     rules: {
-      // Selectors use roles and labels, never CSS (docs/standards.md, Testing).
       "playwright/no-raw-locators": ["error", { allowed: ["html"] }],
     },
   },
@@ -55,5 +57,6 @@ export default defineConfig(
     files: ["eslint.config.js"],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  // eslint-config-prettier must stay last to turn off rules that conflict with Prettier.
   prettier,
 );

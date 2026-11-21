@@ -52,6 +52,7 @@ jobs:
               - "frontend/**"
               - "e2e/**"
               - "contract/**"
+              - "tooling/**"
               - "package.json"
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
@@ -60,6 +61,7 @@ jobs:
             fastapi:
               - *shared
               - "backend-fastapi/**"
+              - "db/**"
             spring:
               - *shared
               - "backend-spring/**"

@@ -1,0 +1,6 @@
+extends:
+  - recommended-strict
+
+rules:
+  info-license: off
+  info-license-strict: off

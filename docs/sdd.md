@@ -135,7 +135,9 @@ Both backends listen on port 8000 inside the network and serve everything under 
 
 ## Database schema
 
-Six SQLite tables. Money is `INTEGER` cents, dates are ISO `TEXT` (`YYYY-MM-DD`), timestamps are UTC ISO `TEXT`. Every table has `id INTEGER PRIMARY KEY`, plus `created_at` and `updated_at` where rows change.
+Seven SQLite tables, all `STRICT` (a column only ever holds its declared type, so text can't slip into an `INTEGER` money column and pass its `>= 0` check). Money is `INTEGER` cents with `CHECK (… >= 0)`, dates are ISO `TEXT` (`YYYY-MM-DD`), timestamps are UTC ISO `TEXT`, each with the format checks under Date and timestamp storage. Every table has `id INTEGER PRIMARY KEY`, plus `created_at` and `updated_at` where rows change. Timestamp columns have no `DEFAULT`: backends write them from their injected clock. Closed sets (statuses, units, types, categories) are `CHECK … IN (…)`; adding a value later needs a migration that rebuilds the table, since SQLite can't alter a `CHECK`.
+
+Categories are a closed set of codes that the frontend translates: `music`, `video`, `vpn`, `cloud`, `ai`, `software`, `domains`, `other`.
 
 ### catalog\_service
 
@@ -143,15 +145,18 @@ Six SQLite tables. Money is `INTEGER` cents, dates are ISO `TEXT` (`YYYY-MM-DD`)
 | --- | --- | --- |
 | name | text, unique | "Spotify" |
 | domain | text | "spotify.com", key for the logo |
-| category | text | Music, Video, VPN, Cloud, AI, Software, Domains, Other |
-| default\_plans | JSON text | `[{"plan":"Individual","price_cents":1199,"interval":"1 month"}]` |
+| category | text, CHECK in the category codes |  |
+| default\_plans | JSON text, CHECK JSON array | `[{"plan":"Individual","price_cents":1199,"interval_count":1,"interval_unit":"month"}]`, same interval shape as subscriptions |
+
+Catalogue rows change only through migrations, so the table has no timestamps. Catalogue seeds insert explicit ids, because exports reference `catalog_service_id`.
 
 ### subscription
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| catalog\_service\_id | int, nullable | FK, null for free-text services |
-| name, category | text |  |
+| catalog\_service\_id | int, nullable | FK, ON DELETE SET NULL; null for free-text services |
+| name | text |  |
+| category | text, CHECK in the category codes |  |
 | plan\_name | text, nullable |  |
 | price\_cents | int | current price, mirrors the latest price\_history row |
 | interval\_count | int, CHECK ≥ 1 |  |
@@ -165,6 +170,9 @@ Six SQLite tables. Money is `INTEGER` cents, dates are ISO `TEXT` (`YYYY-MM-DD`)
 | website, cancel\_url, notes | text, nullable |  |
 | ends\_on | date, nullable | last day of access after cancelling |
 | archived\_at | timestamp, nullable | set = archived |
+| created\_at, updated\_at | timestamp |  |
+
+Row checks: a `cancelled` subscription has `cancelled_at` and `ends_on`; a `paused` one has `paused_at`.
 
 ### price\_history
 
@@ -173,6 +181,7 @@ Six SQLite tables. Money is `INTEGER` cents, dates are ISO `TEXT` (`YYYY-MM-DD`)
 | subscription\_id | int | FK, ON DELETE CASCADE |
 | price\_cents | int |  |
 | effective\_from | date | UNIQUE (subscription\_id, effective\_from) |
+| created\_at | timestamp | entries are never edited, so no updated\_at |
 
 ### payment
 
@@ -186,42 +195,61 @@ Six SQLite tables. Money is `INTEGER` cents, dates are ISO `TEXT` (`YYYY-MM-DD`)
 | status | text, CHECK in (expected, paid, skipped, failed) |  |
 | source | text, CHECK in (scheduled, backfill, manual) |  |
 | note | text, nullable |  |
+| created\_at, updated\_at | timestamp |  |
 
-A partial unique index on (subscription\_id, due\_date) WHERE source != 'manual' makes payment generation idempotent.
+A partial unique index on (subscription\_id, due\_date) WHERE source != 'manual' makes payment generation idempotent. Row check: `paid_cents` and `paid_date` are set exactly when `status = 'paid'`.
 
 ### notification
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| type | text | renewal, trial\_ending, yearly\_renewal, overdue, ending |
+| type | text, CHECK | renewal, trial\_ending, yearly\_renewal, overdue, ending |
 | subscription\_id, payment\_id | int, nullable | FK, ON DELETE SET NULL |
-| severity | text |  |
+| severity | text, CHECK | info, warning, critical (BR-24) |
 | trigger\_date | date | the day it was due to fire |
 | dedupe\_key | text, UNIQUE | e.g. `renewal:12:2026-12-01` |
 | read\_at | timestamp, nullable |  |
-| params | JSON text | e.g. {name, date, amount\_cents}; the frontend renders the text in the user's language |
+| params | JSON text, CHECK JSON object | e.g. {name, date, amount\_cents}; the frontend renders the text in the user's language |
+| created\_at, updated\_at | timestamp |  |
 
 ### setting
 
-Key-value table: `default_reminder_days` (3), `trial_reminder_days` (3), `yearly_reminder_days` (14), `payment_horizon_days` (60), `logo_dev_token`, `last_scheduler_run`.
+Key-value table (`key` unique, `value` text, `updated_at`). `NULL` means "not set". The key list is closed (`CHECK key IN (…)`) and each key's value has its own check, so adding a key needs a migration that rebuilds this small table. V1 inserts every key with its default; those seed rows' `updated_at` is the migration time.
 
-Also `ending_reminder_days` (7) and `locale` (`en` or `es`; empty = follow the browser).
+Keys and defaults: `default_reminder_days` (3), `trial_reminder_days` (3), `yearly_reminder_days` (14), `payment_horizon_days` (60), `logo_dev_token` (null), `last_scheduler_run` (null).
 
-Appearance and lock keys: `theme` (system, light, dark), `font_size` (sm, md, lg), `reduced_motion` (system, always), `week_start` (1 = Monday … 7), `passcode_hash` (Argon2id in PHC string format; empty = no passcode), `lock_policy` (on\_open, idle\_5, idle\_15, idle\_30, idle\_60, manual), `failed_attempts`, `retry_after`.
+Also `ending_reminder_days` (7) and `locale` (`en` or `es`; null = follow the browser).
+
+Appearance and lock keys: `theme` (system, light, dark; default system), `font_size` (sm, md, lg; default md), `reduced_motion` (system, always; default system), `week_start` (1 = Monday … 7; default 1), `passcode_hash` (Argon2id in PHC string format; null = no passcode), `lock_policy` (on\_open, idle\_5, idle\_15, idle\_30, idle\_60, manual; default idle\_15), `failed_attempts` (0), `retry_after` (timestamp, null).
 
 ### session
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| token\_hash | text, unique | SHA-256 of the random session token; the token itself is only in the cookie |
+| token\_hash | text, unique, CHECK 64 lowercase hex | SHA-256 of the random session token; the token itself is only in the cookie |
 | created\_at | timestamp |  |
 | last\_activity\_at | timestamp | updated only by user-driven requests |
 
 Sessions live in the database, so switching backend profile keeps you unlocked. Removing the passcode or locking deletes all rows.
 
+### Indexes
+
+Besides the unique constraints above (`catalog_service.name`, `price_history (subscription_id, effective_from)`, `notification.dedupe_key`, `setting.key`, `session.token_hash`):
+
+| Index | Serves |
+| --- | --- |
+| `payment (subscription_id, due_date)` UNIQUE WHERE source != 'manual' | Idempotent payment generation (BR-7) |
+| `payment (subscription_id, due_date)` | Payments of one subscription; the ON DELETE CASCADE lookup |
+| `payment (due_date)` | Date-range lists, upcoming payments, monthly statistics |
+| `payment (status, due_date)` | Expected, overdue and auto-confirm scans |
+| `notification (trigger_date)` WHERE read\_at IS NULL | Unread list and badge count |
+| `notification (subscription_id)`, `notification (payment_id)` | ON DELETE SET NULL lookups |
+| `subscription (catalog_service_id)` | ON DELETE SET NULL lookup |
+
 ### Migrations and ownership
 
-- `db/migrations/V1__init.sql` creates the schema; `V2__catalog_seed.sql` inserts the initial catalogue; later changes are new `Vn__` files.
+- `db/migrations/V1__init.sql` creates the schema and the default settings; `V2__catalog_seed.sql` is reserved for the initial catalogue and has no rows until its content is decided (SRS open question); later changes are new `Vn__` files.
+- `backend-fastapi/tests/integration/test_migrations.py` applies every migration to a fresh SQLite file (fixture `migrated_db` in `tests/conftest.py`, reused by repository tests) and checks the constraints.
 - Only the Flyway `migrate` container changes the schema. Spring runs with Flyway disabled and `ddl-auto=validate`; FastAPI never calls `create_all`. A mismatch fails at startup.
 - Every connection sets `PRAGMA foreign_keys = ON` (off by default in SQLite), `journal_mode = WAL` and a `busy_timeout`.
 - Spring needs the `sqlite-jdbc` driver and the Hibernate community SQLite dialect.
@@ -235,7 +263,12 @@ Both backends write the same ISO text (NFR-9); neither relies on driver defaults
 | Date | `YYYY-MM-DD` | `2026-12-01` |
 | Timestamp | UTC, millisecond precision, `Z` suffix | `2026-11-10T15:18:00.000Z` |
 
-- **Database**: `CHECK` constraints on every date and timestamp column (e.g. `CHECK (due_date GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]')`), so a wrong format fails on write instead of corrupting data.
+- **Database**: `CHECK` constraints on every date and timestamp column, so a wrong format fails on write instead of corrupting data. Every column uses one of two patterns, written identically everywhere (nullable columns wrap them in `col IS NULL OR (…)`):
+  - Date: `col GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(col) IS col`
+  - Timestamp: `col GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z' AND strftime('%Y-%m-%dT%H:%M:%fZ', col) IS col`
+
+  The `GLOB` checks the shape; the round-trip through `date()` / `strftime()` rejects impossible values such as `2026-02-30` or `25:00`. It uses `IS`, not `=`: those functions return NULL for invalid input, and a `CHECK` that evaluates to NULL passes.
+- **Contract**: `Date` has pattern `^[0-9]{4}-[0-9]{2}-[0-9]{2}$` (format `date`), `Timestamp` has `^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$` (format `date-time`), and `Month` (statistics) has `^[0-9]{4}-(0[1-9]|1[0-2])$`.
 - **Spring**: JPA `AttributeConverter`s for `LocalDate` and `Instant` that read and write these strings. The SQLite JDBC driver's default date storage (epoch milliseconds) is never used.
 - **FastAPI**: SQLAlchemy's `Date` already writes `YYYY-MM-DD`; timestamps use a small custom column type (`TypeDecorator`) that writes the format above, since the default is not ISO with `Z`.
 - **Test**: the integration suite has a cross-backend check: create data through one backend, restart on the other profile, read it back identically.
@@ -272,11 +305,11 @@ REST + JSON under `/api/v1`, written first in `contract/openapi.yaml`. Both back
 | GET | /stats/monthly | `?from=&to=`: actual vs expected per month |
 | GET | /settings | All settings |
 | PUT | /settings | Update settings |
-| POST | /admin/run-scheduler | Run the scheduler job now (dev and tests) |
+| POST | /admin/run-scheduler | Test mode only: run the scheduler job now; 404 otherwise |
 | GET | /export | `?format=json` or `csv` |
 | POST | /import | JSON from /export |
 | GET | /health | `{status, backend: "fastapi" or "spring", version, last_scheduler_run}` (`last_scheduler_run` is null until the job has run) |
-| POST | /admin/clock | Test mode only: set today's date; 404 otherwise |
+| POST | /admin/clock | Test mode only: `{now}` pins the clock to a timestamp (today is its date in Europe/Madrid); 404 otherwise |
 | POST | /subscriptions/{id}/archive | Archive (FR-28); /unarchive restores it; GET /subscriptions?archived=true lists them |
 | POST | /admin/reset | Test mode only: empty all tables and re-seed the catalogue; 404 otherwise |
 | GET | /auth/status | {passcode\_enabled, unlocked, lock\_policy, retry\_after}; no other data |
@@ -286,6 +319,43 @@ REST + JSON under `/api/v1`, written first in `contract/openapi.yaml`. Both back
 | DELETE | /auth/passcode | {current}: remove the passcode |
 
 The `backend` field in `/health` lets the frontend show which implementation is answering.
+
+`contract/openapi.yaml` is the detailed source; these are the decisions it settles.
+
+- **Conventions.** Every object has `additionalProperties: false`. Lists come wrapped (`{"items": [...]}`) so fields can be added later. A subscription always carries its derived fields (`next_renewal_date`, `monthly_equivalent_cents`, `yearly_equivalent_cents`, `payment_count`, `total_paid_cents`), in lists too. A payment carries `subscription_name`. `PATCH` changes only the fields sent; `null` clears a nullable field. Text limits (`maxLength`) count Unicode code points, as JSON Schema does (Java must use `codePointCount`, not `length()`).
+- **Security.** One cookie scheme, `subtrack_session`, applied globally; `security: []` only on `/health`, `/auth/status` and `/auth/unlock`.
+- **Status changes** (`POST /subscriptions/{id}/status`, body `{status, date?, ends_on?}`; `date` defaults to today and is only for pause and cancel, `ends_on` only for cancel). Allowed: trial → active, paused, cancelled; active → paused, cancelled; paused → active, cancelled; cancelled → active. Anything else is 409 `invalid-status-transition`.
+- **Payments.** A manual payment (`POST /payments`, `{subscription_id, paid_cents, paid_date, note?}`) is stored as `paid`, source `manual`, with `due_date = paid_date` and `expected_cents = paid_cents`. Confirming defaults `paid_cents` to `expected_cents` and `paid_date` to the due date. Confirm, skip and fail apply only to `expected` payments (otherwise 409 `payment-not-expected`).
+- **Statistics.** Breakdowns are ordered by exact monthly equivalent descending, then key, and allocated by largest remainder in that order (BR-26; equal remainders go to the earlier part). `/stats/monthly` groups payments by the month of their due date: `planned_cents` is every payment's `expected_cents`, `actual_cents` the paid ones' `paid_cents`.
+- **Passcode.** `^[A-Za-z0-9]{6,128}$`. Setting or changing it deletes other sessions and returns a fresh session cookie. A missing or wrong `current` counts as a failed attempt.
+
+### Errors
+
+RFC 9457 problem JSON with media type `application/problem+json`: `type`, `title`, `status`, optional `detail`, plus `errors[]` (validation) or `retry_after` (too many attempts). `type` is a stable URN `urn:subtrack:problem:<code>` that the frontend translates. `title` (constant per type) and `detail` are developer-facing English and never displayed.
+
+| Code | Status | When |
+| --- | --- | --- |
+| `malformed-request` | 400 | The body is not valid JSON |
+| `unauthorized` | 401 | A passcode is set and there is no valid session |
+| `invalid-passcode` | 401 | Wrong passcode on unlock, or missing/wrong `current` |
+| `not-found` | 404 | Unknown resource or route, or a test endpoint outside test mode |
+| `method-not-allowed` | 405 | The path exists but not with this method |
+| `passcode-not-set` | 409 | Unlocking or removing the passcode while none is set |
+| `invalid-status-transition` | 409 | A status change outside the transition list |
+| `payment-not-expected` | 409 | Confirming, skipping or failing a payment that is not `expected` |
+| `payment-not-paid` | 409 | Editing `paid_cents` or `paid_date` of a payment that is not `paid` |
+| `price-change-exists` | 409 | A price change already takes effect on that date |
+| `unsupported-media-type` | 415 | The body is not `application/json` |
+| `validation-error` | 422 | Invalid parameters or body |
+| `unsupported-format-version` | 422 | Import of an unknown (newer) export format |
+| `too-many-attempts` | 429 | Unlock refused until `retry_after` (also a `Retry-After` header) |
+| `internal-error` | 500 | Anything unexpected |
+
+Each `errors[]` entry is `{location, pointer, code, params?}`: `location` is `body`, `query` or `path`; `pointer` is a JSON Pointer into the body (`/price_cents`), or `/<name>` for a parameter; `code` is one of `required`, `unknown_property`, `type`, `format`, `pattern`, `enum`, `minimum`, `maximum`, `min_length`, `max_length`, `invalid` (a cross-field rule such as `to` before `from`); `params` carries the limit (`minimum`, `maximum`, `min_length`, `max_length`, `allowed`). Both backends map their validator's errors to these codes.
+
+### Linting
+
+`just lint` runs Redocly CLI on the contract with `recommended-strict` (`contract/redocly.yaml`), so any finding fails. Deliberate exceptions live in `contract/.redocly.lint-ignore.yaml`, and `just gen` validates with a minimal structural config (`contract/redocly.gen.yaml`); the reasons are in ADR 0005.
 
 ### API evolution
 
@@ -306,6 +376,9 @@ Export files outlive the code, so they carry their own version:
 - `format_version` changes only when the file structure changes, independently of the API version and the database migrations.
 - Import reads every format version it knows, converting older ones step by step, and rejects unknown (newer) versions with a clear error.
 - Exports never include the passcode hash, sessions or test-mode state; import never overwrites them.
+- `data` (format version 1) holds `subscriptions`, `price_history`, `payments` and `notifications` (read state included) as stored rows with their ids, plus the user `settings`. It leaves out `failed_attempts`, `retry_after` and `last_scheduler_run`, so catch-up after an import starts from the importing app's own state. The file's row schemas (`Export*` in the contract) are kept apart from the API resources, so an API change never changes the file format by accident.
+- Import replaces all data in one transaction: it deletes subscriptions, price history, payments and notifications, inserts the file's rows with their ids, and applies its settings. A `catalog_service_id` that doesn't exist becomes null.
+- `GET /export?format=csv` is one flat file for spreadsheets, not a backup, and can't be imported: one row per payment (archived subscriptions included) with columns `payment_id, subscription_id, subscription_name, category, payment_method, due_date, expected_cents, paid_cents, paid_date, status, source, note`. RFC 4180, UTF-8, header row, empty fields for null, amounts in cents.
 
 ## Backend design
 
@@ -314,7 +387,7 @@ Both backends use the same four layers and the same module names, so code can be
 1. **API layer**: routes, request/response models, problem-JSON error handler. No logic.
 2. **Service layer**: use cases (create subscription, confirm payment, change price, run scheduler), one transaction each.
 3. **Billing core**: pure functions with no I/O for BR-1 to BR-5 (next dates, clamping, normalization). The shared test cases target this module directly.
-4. **Repository layer**: data access for the six tables.
+4. **Repository layer**: data access for the seven tables.
 
 Time is injected everywhere (a `Clock` in Java, a `today()` provider in Python), so tests can pin "today" and the scheduler can be tested across months.
 
@@ -332,7 +405,7 @@ Time is injected everywhere (a `Clock` in Java, a `today()` provider in Python),
 
 ### Scheduler
 
-- Runs once at startup, then every hour, and on `POST /admin/run-scheduler`.
+- Runs once at startup, then every hour, and in test mode on `POST /admin/run-scheduler`.
 - Steps in order, each in its own transaction: activate ended trials (BR-12), generate payments up to the horizon (BR-6 to BR-8), auto-confirm (BR-11), create notifications for every trigger date from `last_scheduler_run` to today (BR-13 to BR-19), then store `last_scheduler_run`.
 - Idempotency comes from the database: the payment unique index and the notification `dedupe_key`. Inserts use `INSERT … ON CONFLICT DO NOTHING`.
 - Backfill (FR-27) reuses the generator with a start date in the past, writing `status = paid`, `source = backfill`.
@@ -432,7 +505,9 @@ Testing priority is **end to end > integration > unit**, on a base of static ana
 | Integration (API) | second | One HTTP suite written once in TypeScript against `/api/v1`, run against each backend on a fresh database; covers every BR table through the API. Plus contract checks against `openapi.yaml` | Playwright request fixture, Schemathesis |
 | Unit | least | Billing core date math (BR-1 to BR-5) from the shared JSON cases; a few hooks or components with real logic | pytest, JUnit 5, Vitest |
 
-**Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{today}`). Tests set the date, call `POST /admin/run-scheduler`, and check payments and notifications. POST /admin/reset empties all tables and re-seeds the catalogue so every test starts from a fresh database. All three test endpoints return 404 outside test mode.
+**Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{now}`, a UTC timestamp; "today" is its date in Europe/Madrid, and the time of day drives idle-lock tests). Tests set the clock, call `POST /admin/run-scheduler`, and check payments and notifications. POST /admin/reset empties all tables, re-seeds the catalogue and restores the default settings so every test starts from a fresh database. All three test endpoints return 404 outside test mode.
+
+**Business-rule cases.** `contract/cases/*.json` hold the BR-1/BR-2, BR-4/BR-5/BR-22 and BR-26 cases (format in `contract/cases/README.md`), validated against `contract/cases/schema/` by `just lint`. Payment generation and reminders have no case files yet: their open questions come first.
 
 **When suites run.** Static checks and the API suite run on every push, against both backends. The full browser suite runs only on main and the staging branch.
 

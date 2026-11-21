@@ -43,7 +43,7 @@ lint-fastapi:
 
 [private]
 lint-spring:
-    cd backend-spring && ./gradlew --quiet spotlessCheck compileJava compileTestJava
+    cd backend-spring && ./gradlew --quiet spotlessCheck compileJava compileTestJava checkstyleMain checkstyleTest
 
 # Format and auto-fix every part
 fmt:

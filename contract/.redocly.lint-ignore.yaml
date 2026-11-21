@@ -1,0 +1,4 @@
+openapi.yaml:
+  operation-4xx-response:
+    - "#/paths/~1health/get/responses"
+    - "#/paths/~1auth~1status/get/responses"

@@ -1,0 +1,329 @@
+{
+  "$schema": "./schema/allocation.schema.json",
+  "description": "Monthly equivalents allocated to parts that add up exactly to the shown total. The total is the exact sum rounded once, half-up. Each part is rounded down, then the leftover cents go one by one to the parts with the largest remainders; equal remainders go in input order.",
+  "rules": ["BR-4", "BR-22", "BR-26"],
+  "cases": [
+    {
+      "id": "srs-three-weekly-plans",
+      "rules": ["BR-4", "BR-22", "BR-26"],
+      "description": "SRS example: three weekly plans at 2.99 € are 12.9566… € each. The total is 38.87 €; the parts are 12.96 €, 12.96 € and 12.95 € (equal remainders: earlier parts get the leftover cents first).",
+      "input": {
+        "items": [
+          {
+            "part": "music",
+            "price_cents": 299,
+            "interval": {
+              "count": 1,
+              "unit": "week"
+            }
+          },
+          {
+            "part": "video",
+            "price_cents": 299,
+            "interval": {
+              "count": 1,
+              "unit": "week"
+            }
+          },
+          {
+            "part": "vpn",
+            "price_cents": 299,
+            "interval": {
+              "count": 1,
+              "unit": "week"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 3887,
+        "parts": [
+          {
+            "part": "music",
+            "cents": 1296
+          },
+          {
+            "part": "video",
+            "cents": 1296
+          },
+          {
+            "part": "vpn",
+            "cents": 1295
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-subscriptions",
+      "rules": ["BR-22", "BR-26"],
+      "description": "No subscriptions: the total is zero and there are no parts.",
+      "input": {
+        "items": []
+      },
+      "expected": {
+        "total_cents": 0,
+        "parts": []
+      }
+    },
+    {
+      "id": "exact-parts-need-no-leftover",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Parts that are already whole cents are kept as they are.",
+      "input": {
+        "items": [
+          {
+            "part": "music",
+            "price_cents": 1199,
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "cloud",
+            "price_cents": 1500,
+            "interval": {
+              "count": 3,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 1699,
+        "parts": [
+          {
+            "part": "music",
+            "cents": 1199
+          },
+          {
+            "part": "cloud",
+            "cents": 500
+          }
+        ]
+      }
+    },
+    {
+      "id": "single-part-at-half-a-cent",
+      "rules": ["BR-22", "BR-26"],
+      "description": "One part of exactly 2.5 cents: the total rounds half-up to 3 and the part gets the leftover cent.",
+      "input": {
+        "items": [
+          {
+            "part": "other",
+            "price_cents": 5,
+            "interval": {
+              "count": 2,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 3,
+        "parts": [
+          {
+            "part": "other",
+            "cents": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "rounding-each-part-would-lose-a-cent",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Three parts of 0.4 cents: the total is 1.2 → 1 cent. Rounding each part would show 0 + 0 + 0; allocation gives the cent to the first part (equal remainders).",
+      "input": {
+        "items": [
+          {
+            "part": "music",
+            "price_cents": 4,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "video",
+            "price_cents": 4,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "vpn",
+            "price_cents": 4,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 1,
+        "parts": [
+          {
+            "part": "music",
+            "cents": 1
+          },
+          {
+            "part": "video",
+            "cents": 0
+          },
+          {
+            "part": "vpn",
+            "cents": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "largest-remainders-win-regardless-of-order",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Parts of 1.2, 1.9 and 1.5 cents: the total is 4.6 → 5. Floors give 3, and the 2 leftover cents go to the remainders .9 and .5, not to the first part.",
+      "input": {
+        "items": [
+          {
+            "part": "music",
+            "price_cents": 12,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "video",
+            "price_cents": 19,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "vpn",
+            "price_cents": 15,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 5,
+        "parts": [
+          {
+            "part": "music",
+            "cents": 1
+          },
+          {
+            "part": "video",
+            "cents": 2
+          },
+          {
+            "part": "vpn",
+            "cents": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "equal-remainders-go-in-input-order",
+      "rules": ["BR-22", "BR-26"],
+      "description": "Two parts of exactly 0.5 cents: the total is 1 cent, and the earlier part gets it.",
+      "input": {
+        "items": [
+          {
+            "part": "video",
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "music",
+            "price_cents": 5,
+            "interval": {
+              "count": 10,
+              "unit": "month"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 1,
+        "parts": [
+          {
+            "part": "video",
+            "cents": 1
+          },
+          {
+            "part": "music",
+            "cents": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "grouped-items-are-summed-exactly-before-allocating",
+      "rules": ["BR-4", "BR-22", "BR-26"],
+      "description": "Category breakdown: two weekly plans at 2.99 € in music sum exactly to 25.9133… € (not 12.96 € + 12.96 €), video is 11.99 €, a 49.99 € yearly VPN is 4.1658… €. The total is 42.0691… € → 42.07 €; the leftover cent goes to vpn (remainder .58 beats music's .33).",
+      "input": {
+        "items": [
+          {
+            "part": "music",
+            "price_cents": 299,
+            "interval": {
+              "count": 1,
+              "unit": "week"
+            }
+          },
+          {
+            "part": "video",
+            "price_cents": 1199,
+            "interval": {
+              "count": 1,
+              "unit": "month"
+            }
+          },
+          {
+            "part": "music",
+            "price_cents": 299,
+            "interval": {
+              "count": 1,
+              "unit": "week"
+            }
+          },
+          {
+            "part": "vpn",
+            "price_cents": 4999,
+            "interval": {
+              "count": 1,
+              "unit": "year"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "total_cents": 4207,
+        "parts": [
+          {
+            "part": "music",
+            "cents": 2591
+          },
+          {
+            "part": "video",
+            "cents": 1199
+          },
+          {
+            "part": "vpn",
+            "cents": 417
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,292 @@
+{
+  "$schema": "./schema/billing-dates.schema.json",
+  "description": "The n-th billing date is anchor + n × interval, computed from the anchor (never from the previous date) and clamped to the last day of a shorter month.",
+  "rules": ["BR-1", "BR-2"],
+  "cases": [
+    {
+      "id": "srs-monthly-from-31st",
+      "rules": ["BR-1", "BR-2"],
+      "description": "SRS table: monthly from the 31st clamps in short months and returns to the 31st.",
+      "input": {
+        "anchor": "2026-01-31",
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2026-02-28", "2026-03-31", "2026-04-30"]
+      }
+    },
+    {
+      "id": "srs-quarterly-from-31st",
+      "rules": ["BR-1", "BR-2"],
+      "description": "SRS table: every 3 months from the 31st.",
+      "input": {
+        "anchor": "2026-01-31",
+        "interval": {
+          "count": 3,
+          "unit": "month"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2026-04-30", "2026-07-31", "2026-10-31"]
+      }
+    },
+    {
+      "id": "srs-yearly-from-leap-day",
+      "rules": ["BR-1", "BR-2"],
+      "description": "SRS table, as consecutive dates: yearly from 29 February clamps to the 28th and returns to the 29th in the next leap year.",
+      "input": {
+        "anchor": "2024-02-29",
+        "interval": {
+          "count": 1,
+          "unit": "year"
+        },
+        "count": 4
+      },
+      "expected": {
+        "dates": ["2025-02-28", "2026-02-28", "2027-02-28", "2028-02-29"]
+      }
+    },
+    {
+      "id": "srs-weekly",
+      "rules": ["BR-1"],
+      "description": "SRS table: weekly.",
+      "input": {
+        "anchor": "2026-11-10",
+        "interval": {
+          "count": 1,
+          "unit": "week"
+        },
+        "count": 2
+      },
+      "expected": {
+        "dates": ["2026-11-17", "2026-11-24"]
+      }
+    },
+    {
+      "id": "srs-every-14-days",
+      "rules": ["BR-1"],
+      "description": "SRS table: every 14 days.",
+      "input": {
+        "anchor": "2026-11-10",
+        "interval": {
+          "count": 14,
+          "unit": "day"
+        },
+        "count": 2
+      },
+      "expected": {
+        "dates": ["2026-11-24", "2026-12-08"]
+      }
+    },
+    {
+      "id": "monthly-from-30th-returns-after-february",
+      "rules": ["BR-1", "BR-2"],
+      "description": "The 30th clamps to 28 February and comes back to the 30th, not the 28th.",
+      "input": {
+        "anchor": "2026-01-30",
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2026-02-28", "2026-03-30", "2026-04-30"]
+      }
+    },
+    {
+      "id": "monthly-from-29th-in-a-common-year",
+      "rules": ["BR-1", "BR-2"],
+      "description": "The 29th clamps to 28 February in a common year.",
+      "input": {
+        "anchor": "2027-01-29",
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        },
+        "count": 2
+      },
+      "expected": {
+        "dates": ["2027-02-28", "2027-03-29"]
+      }
+    },
+    {
+      "id": "monthly-from-31st-through-a-leap-february",
+      "rules": ["BR-1", "BR-2"],
+      "description": "The 31st clamps to 29 February in a leap year.",
+      "input": {
+        "anchor": "2028-01-31",
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        },
+        "count": 2
+      },
+      "expected": {
+        "dates": ["2028-02-29", "2028-03-31"]
+      }
+    },
+    {
+      "id": "monthly-from-31st-does-not-drift-over-a-year",
+      "rules": ["BR-1", "BR-2"],
+      "description": "Twelve months from the 31st: every date comes from the anchor, so no month inherits an earlier clamp.",
+      "input": {
+        "anchor": "2026-01-31",
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        },
+        "count": 12
+      },
+      "expected": {
+        "dates": [
+          "2026-02-28",
+          "2026-03-31",
+          "2026-04-30",
+          "2026-05-31",
+          "2026-06-30",
+          "2026-07-31",
+          "2026-08-31",
+          "2026-09-30",
+          "2026-10-31",
+          "2026-11-30",
+          "2026-12-31",
+          "2027-01-31"
+        ]
+      }
+    },
+    {
+      "id": "half-yearly-from-31-august",
+      "rules": ["BR-1", "BR-2"],
+      "description": "Every 6 months from 31 August lands in February: 28th in a common year, 29th in a leap year.",
+      "input": {
+        "anchor": "2026-08-31",
+        "interval": {
+          "count": 6,
+          "unit": "month"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2027-02-28", "2027-08-31", "2028-02-29"]
+      }
+    },
+    {
+      "id": "monthly-across-the-year-end",
+      "rules": ["BR-1", "BR-2"],
+      "description": "Monthly from 31 December crosses into the next year.",
+      "input": {
+        "anchor": "2026-12-31",
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2027-01-31", "2027-02-28", "2027-03-31"]
+      }
+    },
+    {
+      "id": "weekly-across-new-year",
+      "rules": ["BR-1"],
+      "description": "Weekly dates cross the year boundary.",
+      "input": {
+        "anchor": "2026-12-29",
+        "interval": {
+          "count": 1,
+          "unit": "week"
+        },
+        "count": 2
+      },
+      "expected": {
+        "dates": ["2027-01-05", "2027-01-12"]
+      }
+    },
+    {
+      "id": "daily-across-the-end-of-february",
+      "rules": ["BR-1"],
+      "description": "Daily dates in a common year go from 28 February to 1 March.",
+      "input": {
+        "anchor": "2026-02-27",
+        "interval": {
+          "count": 1,
+          "unit": "day"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2026-02-28", "2026-03-01", "2026-03-02"]
+      }
+    },
+    {
+      "id": "daily-across-a-leap-day",
+      "rules": ["BR-1"],
+      "description": "Daily dates in a leap year include 29 February.",
+      "input": {
+        "anchor": "2028-02-27",
+        "interval": {
+          "count": 1,
+          "unit": "day"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2028-02-28", "2028-02-29", "2028-03-01"]
+      }
+    },
+    {
+      "id": "every-2-years-from-leap-day",
+      "rules": ["BR-1", "BR-2"],
+      "description": "Every 2 years from 29 February clamps in common years only.",
+      "input": {
+        "anchor": "2024-02-29",
+        "interval": {
+          "count": 2,
+          "unit": "year"
+        },
+        "count": 2
+      },
+      "expected": {
+        "dates": ["2026-02-28", "2028-02-29"]
+      }
+    },
+    {
+      "id": "twelve-months-equal-one-year",
+      "rules": ["BR-1", "BR-2"],
+      "description": "12 months give the same dates as 1 year.",
+      "input": {
+        "anchor": "2024-02-29",
+        "interval": {
+          "count": 12,
+          "unit": "month"
+        },
+        "count": 4
+      },
+      "expected": {
+        "dates": ["2025-02-28", "2026-02-28", "2027-02-28", "2028-02-29"]
+      }
+    },
+    {
+      "id": "four-weeks-are-not-a-month",
+      "rules": ["BR-1"],
+      "description": "Every 4 weeks adds 28 days; it is not monthly and never clamps.",
+      "input": {
+        "anchor": "2026-01-31",
+        "interval": {
+          "count": 4,
+          "unit": "week"
+        },
+        "count": 3
+      },
+      "expected": {
+        "dates": ["2026-02-28", "2026-03-28", "2026-04-25"]
+      }
+    }
+  ]
+}

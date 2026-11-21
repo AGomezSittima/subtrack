@@ -33,7 +33,7 @@ Full detail: `docs/standards.md` (TypeScript and React, Tailwind CSS and shadcn/
 - Amounts are integer cents; format with `Intl.NumberFormat` (`style: 'currency', currency: 'EUR'`) for the active locale.
 
 ## Styling (Tailwind CSS 4 + shadcn tokens)
-- Order of preference: standard utility → token in `src/styles/global.css` (`:root` + `@theme inline`) → arbitrary value with a comment.
+- Order of preference: standard utility → token in `src/styles/global.css` (`:root` + `@theme inline`) → arbitrary value only for a true one-off; otherwise add a token.
 - Semantic color tokens only (`primary`, `muted`, `destructive`, `success`, `warning`); no raw palette classes.
 - Sizes in `rem` only, so the font-size setting scales the whole UI. Every token has a `.dark` value.
 - Conditional classes via `cn()`; never build class names by concatenation. No inline `style`, no `@apply` outside `global.css`.
@@ -42,6 +42,10 @@ Full detail: `docs/standards.md` (TypeScript and React, Tailwind CSS and shadcn/
 ## Localization and accessibility
 - No literal user-facing strings in JSX; use `src/locales/{en,es}` with feature-namespaced keys. Add every key to both languages.
 - Semantic elements first, every input has a label, everything keyboard-reachable, never color alone for meaning.
+
+## Comments
+- None by default; JSDoc included. Only a one-line why caused by an external constraint.
+- No FR/BR/NFR IDs in code or comments. No workaround comments: fix it, `TODO(#<issue>)`, or an ADR. ESLint (`no-warning-comments`, `subtrack/todo-needs-issue`) enforces the `TODO` form.
 
 ## Tooling
 - ESLint flat config: typescript-eslint (type-checked), react-hooks, jsx-a11y, TanStack query/router plugins, simple-import-sort, unused-imports, i18next/no-literal-string. Prettier with prettier-plugin-tailwindcss.

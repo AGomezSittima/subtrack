@@ -1,4 +1,3 @@
-// ESLint finds problems; Prettier owns formatting (eslint-config-prettier goes last).
 import js from "@eslint/js";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
@@ -11,6 +10,8 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 import unusedImports from "eslint-plugin-unused-imports";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+
+import { commentRules, subtrack } from "../tooling/eslint-plugin-subtrack.js";
 
 export default defineConfig(
   globalIgnores(["dist/", "src/routeTree.gen.ts"]),
@@ -30,9 +31,10 @@ export default defineConfig(
     plugins: {
       "simple-import-sort": simpleImportSort,
       "unused-imports": unusedImports,
+      subtrack,
     },
     rules: {
-      // Side effects (polyfill first, in source order), packages, `@/` aliases, relative, styles.
+      ...commentRules,
       "simple-import-sort/imports": [
         "error",
         {
@@ -75,7 +77,6 @@ export default defineConfig(
         "error",
         {
           mode: "jsx-only",
-          // Only attributes a user can see or hear; data-*, className, variants etc. are code.
           "jsx-attributes": {
             include: [
               "alt",
@@ -122,7 +123,6 @@ export default defineConfig(
     },
   },
   {
-    // shadcn/ui code we own: the only place that imports Base UI.
     files: ["src/components/ui/**"],
     rules: { "no-restricted-imports": "off" },
   },
@@ -139,5 +139,6 @@ export default defineConfig(
     files: ["eslint.config.js"],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  // eslint-config-prettier must stay last to turn off rules that conflict with Prettier.
   prettier,
 );

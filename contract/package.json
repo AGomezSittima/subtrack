@@ -11,9 +11,13 @@
     "./openapi.yaml": "./openapi.yaml"
   },
   "scripts": {
-    "gen": "openapi-typescript openapi.yaml --output generated/openapi.d.ts"
+    "gen": "openapi-typescript openapi.yaml --redocly redocly.gen.yaml --output generated/openapi.d.ts",
+    "lint": "redocly lint openapi.yaml && node scripts/validate-cases.ts && tsc --noEmit"
   },
   "devDependencies": {
+    "@redocly/cli": "2.76.0",
+    "@types/node": "26.6.6",
+    "ajv": "8.20.0",
     "openapi-typescript": "7.13.0",
     "typescript": "6.0.3"
   }

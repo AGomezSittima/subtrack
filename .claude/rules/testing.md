@@ -25,4 +25,4 @@ End to end > integration > unit, on a base of static analysis. Write the highest
 - Selectors use roles and labels (`getByRole`, `getByLabel`), never CSS classes.
 - E2E runs in English by default, plus one smoke flow in Spanish.
 - A bug fix starts with a failing test at the highest level that can reproduce it.
-- Names describe behavior and reference the rule when there is one: `BR-2 clamps the 31st to the end of a short month`.
+- Names describe behavior and reference the rule when there is one: `BR-2 clamps the 31st to the end of a short month`. The test name is the only place in test code for the ID: no docstrings or comments that repeat it.

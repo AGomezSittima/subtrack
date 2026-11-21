@@ -28,13 +28,17 @@ Full detail: `docs/sdd.md` (Backend design, Privacy lock, Date and timestamp sto
 
 ## Time and scheduling
 - Get the current date/time only from the injected `Clock`. In test mode, `POST /admin/clock` sets it.
-- The scheduler job is plain code in `scheduler`; the trigger (APScheduler / `@Scheduled`) only calls it. It runs at startup, hourly, and on `POST /admin/run-scheduler`.
+- The scheduler job is plain code in `scheduler`; the trigger (APScheduler / `@Scheduled`) only calls it. It runs at startup, hourly, and (test mode) on `POST /admin/run-scheduler`.
 
 ## Security
 - Lock enforcement lives in one place (FastAPI router dependency / Spring Security filter chain). New endpoints are protected by default.
 - Passcodes hashed with Argon2id (PHC string); session tokens stored as SHA-256 hashes. Never log `/auth/*` request bodies.
-- Test-only endpoints (`/admin/clock`, `/admin/reset`) return 404 unless `SUBTRACK_TEST_MODE=true`.
+- Test-only endpoints (`/admin/run-scheduler`, `/admin/clock`, `/admin/reset`) return 404 unless `SUBTRACK_TEST_MODE=true`.
 - The server makes no outbound network calls.
+
+## Comments
+- None by default; docstrings and Javadoc included. Only a one-line why caused by an external constraint.
+- No FR/BR/NFR IDs in code or comments. No workaround comments: fix it, `TODO(#<issue>)`, or an ADR. Ruff `TD`/`FIX` and Checkstyle `TodoComment` enforce the `TODO` form.
 
 ## Python / FastAPI
 - uv with committed lockfile. Ruff for format and lint; full type hints, strict type checker.

@@ -2,14 +2,35 @@ openapi: 3.1.1
 info:
   title: Subtrack API
   version: 0.1.0
-  description: |
-    Contract shared by the FastAPI and Spring Boot backends and the frontend.
-    Money is integer cents, dates are `YYYY-MM-DD`, timestamps are UTC ISO 8601
-    with milliseconds and `Z`. Errors are RFC 9457 problem JSON.
+  description: "Contract shared by the FastAPI and Spring Boot backends and the frontend. Conventions, problem types and the privacy lock are in docs/sdd.md, API contract."
 servers:
   - url: /api/v1
+security:
+  - subtrack_session: []
 tags:
   - name: health
+    description: Liveness and which backend implementation answers.
+  - name: auth
+    description: Privacy lock. Not encryption or data protection.
+  - name: catalog
+    description: Catalogue of known services used to prefill new subscriptions.
+  - name: subscriptions
+    description: Subscriptions, their status and archive.
+  - name: prices
+    description: Price history of a subscription.
+  - name: payments
+    description: Expected, paid, skipped and failed payments.
+  - name: notifications
+    description: In-app notifications.
+  - name: stats
+    description: Totals, breakdowns and spend over time.
+  - name: settings
+    description: User settings.
+  - name: data
+    description: Export and import.
+  - name: admin
+    description: Test mode only (`SUBTRACK_TEST_MODE=true`); every endpoint answers 404 otherwise.
+
 paths:
   /health:
     get:
@@ -25,8 +46,1210 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+
+  /auth/status:
+    get:
+      operationId: getAuthStatus
+      tags: [auth]
+      summary: Privacy lock state
+      description: Public endpoint. Returns only the lock state, never any other data.
+      security: []
+      responses:
+        "200":
+          description: The current lock state for this request's session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthStatus"
+
+  /auth/unlock:
+    post:
+      operationId: unlock
+      tags: [auth]
+      summary: Unlock with the passcode
+      description: "Public. On success, sets the `subtrack_session` cookie and resets the failed-attempt counter. From the 6th consecutive failure, attempts answer 429 until `retry_after` (2^(n−5) s after the n-th failure, at most 15 min)."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnlockRequest"
+      responses:
+        "204":
+          description: Unlocked; the session cookie is set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetSessionCookie"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/InvalidPasscode"
+        "409":
+          $ref: "#/components/responses/PasscodeNotSet"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyAttempts"
+
+  /auth/lock:
+    post:
+      operationId: lock
+      tags: [auth]
+      summary: Lock now
+      description: "Deletes this session and clears the cookie. Without a passcode it does nothing."
+      responses:
+        "204":
+          description: Locked; the session cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/ClearSessionCookie"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/passcode:
+    put:
+      operationId: setPasscode
+      tags: [auth]
+      summary: Set or change the passcode
+      description: "Sets the first passcode, or changes it when `current` matches. A missing or wrong `current` answers 401 `invalid-passcode` and counts as a failed attempt. On success, other sessions are deleted and this request gets a fresh session cookie."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasscodeSet"
+      responses:
+        "204":
+          description: Passcode set; a fresh session cookie is set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetSessionCookie"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/UnauthorizedOrInvalidPasscode"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyAttempts"
+    delete:
+      operationId: removePasscode
+      tags: [auth]
+      summary: Remove the passcode
+      description: "Removes the passcode when `current` matches, deletes every session and clears the cookie. A wrong `current` counts as a failed attempt."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasscodeRemove"
+      responses:
+        "204":
+          description: Passcode removed; the session cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/ClearSessionCookie"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/UnauthorizedOrInvalidPasscode"
+        "409":
+          $ref: "#/components/responses/PasscodeNotSet"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "429":
+          $ref: "#/components/responses/TooManyAttempts"
+
+  /catalog:
+    get:
+      operationId: listCatalogServices
+      tags: [catalog]
+      summary: List catalogue services
+      description: Catalogue entries sorted by name, optionally filtered by a search term.
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive substring of the service name.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        "200":
+          description: Matching catalogue services.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogServiceList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /subscriptions:
+    get:
+      operationId: listSubscriptions
+      tags: [subscriptions]
+      summary: List subscriptions
+      description: "Without `archived=true`, only subscriptions that aren't archived; with it, only archived ones."
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/SubscriptionStatus"
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/Category"
+        - name: archived
+          in: query
+          description: "`false`: only subscriptions that are not archived. `true`: only archived ones."
+          schema:
+            type: boolean
+            default: false
+        - name: sort
+          in: query
+          description: |
+            `next_renewal`: next renewal date ascending, subscriptions without one last.
+            `cost`: monthly equivalent descending. `name`: name ascending, case-insensitive.
+            Ties are broken by id ascending.
+          schema:
+            type: string
+            enum: [next_renewal, cost, name]
+            default: next_renewal
+      responses:
+        "200":
+          description: The matching subscriptions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    post:
+      operationId: createSubscription
+      tags: [subscriptions]
+      summary: Create a subscription
+      description: "Creates a subscription and its first price-history entry, effective from the anchor date. With `backfill: true`, every billing date before today is recorded as paid at the price in force."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionCreate"
+      responses:
+        "201":
+          description: The created subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /subscriptions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: getSubscription
+      tags: [subscriptions]
+      summary: Get a subscription
+      description: "One subscription, archived or not."
+      responses:
+        "200":
+          description: The subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    patch:
+      operationId: updateSubscription
+      tags: [subscriptions]
+      summary: Edit a subscription
+      description: "Changes the fields sent; `null` clears a nullable field. Price, status and archive change only through their own endpoints. `ends_on` is editable only while cancelled (otherwise 422 `invalid` on `/ends_on`)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionUpdate"
+      responses:
+        "200":
+          description: The updated subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      operationId: deleteSubscription
+      tags: [subscriptions]
+      summary: Delete a subscription
+      description: "Deletes the subscription with its price history and payments. Its notifications stay, unlinked."
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /subscriptions/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: changeSubscriptionStatus
+      tags: [subscriptions]
+      summary: Pause, resume, cancel or activate
+      description: |
+        Changes the status. Allowed transitions:
+
+        | From | To |
+        | --- | --- |
+        | trial | active (activate early), paused, cancelled |
+        | active | paused, cancelled |
+        | paused | active (resume), cancelled |
+        | cancelled | active (reactivate) |
+
+        Any other transition, including to the current status, answers 409
+        `invalid-status-transition`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionStatusChange"
+      responses:
+        "200":
+          description: The subscription with its new status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /subscriptions/{id}/archive:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: archiveSubscription
+      tags: [subscriptions]
+      summary: Archive a subscription
+      description: "Hides the subscription from lists, totals and reminders; its payments stay in spending history. Idempotent."
+      responses:
+        "200":
+          description: The archived subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /subscriptions/{id}/unarchive:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: unarchiveSubscription
+      tags: [subscriptions]
+      summary: Restore an archived subscription
+      description: "Restores the subscription to lists, totals and reminders. Idempotent."
+      responses:
+        "200":
+          description: The restored subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /subscriptions/{id}/prices:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: listPriceChanges
+      tags: [prices]
+      summary: List price history
+      description: The subscription's price-history entries, oldest effective date first.
+      responses:
+        "200":
+          description: The price history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceChangeList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    post:
+      operationId: createPriceChange
+      tags: [prices]
+      summary: Record a price change
+      description: "Adds a price-history entry. `expected` payments due on or after `effective_from` take the new price; other payments never change. A second entry for the same date answers 409 `price-change-exists`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PriceChangeCreate"
+      responses:
+        "201":
+          description: The new price-history entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceChange"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List payments
+      description: "Payments of every subscription, archived included, by due date descending, then id descending. `from` and `to` filter the due date, both inclusive."
+      parameters:
+        - name: subscription_id
+          in: query
+          schema:
+            $ref: "#/components/schemas/Id"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/PaymentStatus"
+        - name: from
+          in: query
+          description: Earliest due date, inclusive.
+          schema:
+            $ref: "#/components/schemas/Date"
+        - name: to
+          in: query
+          description: Latest due date, inclusive. Must not be before `from` (422 `invalid` on `/to`).
+          schema:
+            $ref: "#/components/schemas/Date"
+      responses:
+        "200":
+          description: The matching payments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    post:
+      operationId: createManualPayment
+      tags: [payments]
+      summary: Record a one-off payment
+      description: "Records a payment outside the schedule, stored as `paid` with source `manual`, `due_date` = `paid_date` and `expected_cents` = `paid_cents`. Manual payments may share a date."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualPaymentCreate"
+      responses:
+        "201":
+          description: The recorded payment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /payments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      operationId: updatePayment
+      tags: [payments]
+      summary: Edit a payment's note or amounts
+      description: |
+        Changes the fields sent; omitted fields stay as they are. `paid_cents` and `paid_date` can be
+        edited only on a paid payment (otherwise 409 `payment-not-paid`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentUpdate"
+      responses:
+        "200":
+          description: The updated payment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /payments/{id}/confirm:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: confirmPayment
+      tags: [payments]
+      summary: Confirm a payment as paid
+      description: "Marks an `expected` payment as paid. `paid_cents` defaults to `expected_cents` and `paid_date` to the due date. Otherwise 409 `payment-not-expected`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentConfirm"
+      responses:
+        "200":
+          description: The paid payment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /payments/{id}/skip:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: skipPayment
+      tags: [payments]
+      summary: Mark a payment as skipped
+      description: Marks an `expected` payment as skipped; otherwise 409 `payment-not-expected`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentResolve"
+      responses:
+        "200":
+          description: The skipped payment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /payments/{id}/fail:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: failPayment
+      tags: [payments]
+      summary: Mark a payment as failed
+      description: Marks an `expected` payment as failed; otherwise 409 `payment-not-expected`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentResolve"
+      responses:
+        "200":
+          description: The failed payment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications
+      description: Notifications newest first (trigger date descending, then id descending).
+      parameters:
+        - name: unread
+          in: query
+          description: "`true`: only unread notifications. `false`: all of them."
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: The notifications.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /notifications/unread-count:
+    get:
+      operationId: getUnreadNotificationCount
+      tags: [notifications]
+      summary: Unread badge count
+      description: "Polled by the frontend every 60 s with `X-Subtrack-Background: 1`."
+      responses:
+        "200":
+          description: How many notifications are unread.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /notifications/{id}/read:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark one notification as read
+      description: Marking a read notification again changes nothing.
+      responses:
+        "204":
+          description: Marked as read.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark every notification as read
+      description: Sets `read_at` on every unread notification.
+      responses:
+        "204":
+          description: All marked as read.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /stats/summary:
+    get:
+      operationId: getStatsSummary
+      tags: [stats]
+      summary: Monthly and yearly totals
+      description: "Monthly and yearly equivalents of the subscriptions that will be charged again, archived excluded. Each total is the exact sum, rounded once."
+      responses:
+        "200":
+          description: The totals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /stats/by-category:
+    get:
+      operationId: getStatsByCategory
+      tags: [stats]
+      summary: Monthly equivalent per category
+      description: "The summary's monthly total split by category, ordered by exact monthly equivalent descending, then category code. Parts are allocated by largest remainder, so they add up to `total_monthly_equivalent_cents`."
+      responses:
+        "200":
+          description: The breakdown.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryBreakdown"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /stats/by-payment-method:
+    get:
+      operationId: getStatsByPaymentMethod
+      tags: [stats]
+      summary: Monthly equivalent per payment method
+      description: "As `/stats/by-category`, split by payment method label; subscriptions without one are grouped under `null`."
+      responses:
+        "200":
+          description: The breakdown.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethodBreakdown"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /stats/upcoming:
+    get:
+      operationId: getUpcomingPayments
+      tags: [stats]
+      summary: Upcoming payments
+      description: "`expected` payments of non-archived subscriptions due from today to today + `days`, both inclusive, by due date. The total is a plain sum."
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 366
+            default: 30
+      responses:
+        "200":
+          description: The upcoming payments and their total.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpcomingPayments"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /stats/monthly:
+    get:
+      operationId: getMonthlyStats
+      tags: [stats]
+      summary: Planned vs actual per month
+      description: "One item per month from `from` to `to`, both inclusive, empty months included; payments (archived included) are grouped by due-date month. At most 120 months; `to` before `from` answers 422 `invalid` on `/to`."
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Month"
+        - name: to
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Month"
+      responses:
+        "200":
+          description: The months.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: All settings
+      description: Every user setting. Never includes the passcode, attempt counters or scheduler state.
+      responses:
+        "200":
+          description: The settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Replace all settings
+      description: Replaces every user setting with the object sent. The passcode changes only through `/auth/passcode`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: The saved settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /export:
+    get:
+      operationId: exportData
+      tags: [data]
+      summary: Export all data
+      description: "Downloads the data as an attachment. `json` (default): the versioned backup `Export`. `csv`: one row per payment for spreadsheets, not importable; columns in docs/sdd.md, Export format."
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        "200":
+          description: The export file.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="subtrack-export-YYYY-MM-DD.json"` (or `.csv`), dated today.'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Export"
+            text/csv:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /import:
+    post:
+      operationId: importData
+      tags: [data]
+      summary: Import a JSON export
+      description: "Replaces all data with the file's contents in one transaction, keeping row ids. The passcode, sessions, attempt counters and `last_scheduler_run` are never touched. Older `format_version`s are converted, an unknown one answers 422 `unsupported-format-version`, and `data` is validated against `ExportData` for its version."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportFile"
+      responses:
+        "200":
+          description: Imported; how many rows of each kind.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /admin/run-scheduler:
+    post:
+      operationId: runScheduler
+      tags: [admin]
+      summary: Run the scheduler job now (test mode only)
+      description: "**Test mode only; 404 otherwise.** Runs the scheduler job synchronously."
+      responses:
+        "204":
+          description: The job finished.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/clock:
+    post:
+      operationId: setClock
+      tags: [admin]
+      summary: Set the clock (test mode only)
+      description: |
+        **Test mode only; 404 otherwise.** Pins the backend clock to `now`. It stays there until set
+        again; "today" is the date of `now` in Europe/Madrid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockSet"
+      responses:
+        "204":
+          description: The clock is set.
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /admin/reset:
+    post:
+      operationId: resetData
+      tags: [admin]
+      summary: Reset to a fresh database (test mode only)
+      description: "**Test mode only; 404 otherwise.** Restores a fresh database: empty tables, the seeded catalogue and default settings."
+      responses:
+        "204":
+          description: The database is fresh.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
+  securitySchemes:
+    subtrack_session:
+      type: apiKey
+      in: cookie
+      name: subtrack_session
+      description: "Privacy-lock session: a random 256-bit token, HttpOnly, SameSite=Strict, Path=/api. Required only while a passcode is set."
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Id of the resource.
+      schema:
+        $ref: "#/components/schemas/Id"
+
+  headers:
+    SetSessionCookie:
+      description: "`subtrack_session=<token>; HttpOnly; SameSite=Strict; Path=/api`"
+      schema:
+        type: string
+    ClearSessionCookie:
+      description: "`subtrack_session=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0`"
+      schema:
+        type: string
+    RetryAfter:
+      description: Seconds until the next attempt is accepted (RFC 9110).
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    MalformedRequest:
+      description: The body is not valid JSON (`malformed-request`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: A passcode is set and the request has no valid session (`unauthorized`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    InvalidPasscode:
+      description: The passcode is wrong (`invalid-passcode`); counts as a failed attempt.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnauthorizedOrInvalidPasscode:
+      description: No valid session (`unauthorized`), or `current` is missing or wrong (`invalid-passcode`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: No such resource (`not-found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: The resource is not in a state that allows this (see the operation for the problem type).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    PasscodeNotSet:
+      description: No passcode is set (`passcode-not-set`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    ValidationFailed:
+      description: The request is invalid (`validation-error`, with `errors[]`), or for `/import` an unknown format version (`unsupported-format-version`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    TooManyAttempts:
+      description: Too many wrong passcodes; retry after `retry_after` (`too-many-attempts`).
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
   schemas:
+    Id:
+      type: integer
+      format: int64
+      minimum: 1
+    Cents:
+      description: Amount in integer euro cents.
+      type: integer
+      format: int64
+      minimum: 0
+      examples: [1199]
+    Date:
+      description: Calendar date, `YYYY-MM-DD`.
+      type: string
+      format: date
+      pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      examples: ["2026-12-01"]
+    Timestamp:
+      description: UTC instant with milliseconds and `Z`.
+      type: string
+      format: date-time
+      pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+      examples: ["2026-11-10T15:18:00.000Z"]
+    Month:
+      description: Calendar month, `YYYY-MM`.
+      type: string
+      pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+      examples: ["2026-11"]
+    IntervalCount:
+      description: How many interval units between billing dates.
+      type: integer
+      minimum: 1
+      maximum: 366
+    IntervalUnit:
+      type: string
+      enum: [day, week, month, year]
+    Category:
+      description: Category code; the frontend translates it.
+      type: string
+      enum: [music, video, vpn, cloud, ai, software, domains, other]
+    SubscriptionStatus:
+      type: string
+      enum: [trial, active, paused, cancelled]
+    PaymentStatus:
+      type: string
+      enum: [expected, paid, skipped, failed]
+    PaymentSource:
+      type: string
+      enum: [scheduled, backfill, manual]
+    NotificationType:
+      type: string
+      enum: [renewal, trial_ending, yearly_renewal, overdue, ending]
+    Severity:
+      description: "`overdue` is critical; `ending` and `trial_ending` are warning; `renewal` and `yearly_renewal` are info."
+      type: string
+      enum: [info, warning, critical]
+    LockPolicy:
+      description: When the app locks while a passcode is set.
+      type: string
+      enum: [on_open, idle_5, idle_15, idle_30, idle_60, manual]
+    ReminderDays:
+      description: Lead time in days before an event.
+      type: integer
+      minimum: 0
+      maximum: 365
+    ServiceName:
+      type: string
+      minLength: 1
+      maxLength: 200
+    PlanName:
+      type: string
+      minLength: 1
+      maxLength: 200
+    PaymentMethodLabel:
+      description: "Free label such as `Visa ··4417`."
+      type: string
+      minLength: 1
+      maxLength: 100
+    WebUrl:
+      type: string
+      maxLength: 2048
+      pattern: "^https?://\\S+$"
+    Note:
+      type: string
+      maxLength: 2000
+    Passcode:
+      description: At least 6 letters or digits.
+      type: string
+      pattern: "^[A-Za-z0-9]{6,128}$"
+
+    ProblemType:
+      description: "Stable problem code the frontend translates; `title` and `detail` are never shown. Statuses and meanings are in docs/sdd.md, Errors."
+      type: string
+      enum:
+        - urn:subtrack:problem:malformed-request
+        - urn:subtrack:problem:unauthorized
+        - urn:subtrack:problem:invalid-passcode
+        - urn:subtrack:problem:not-found
+        - urn:subtrack:problem:method-not-allowed
+        - urn:subtrack:problem:passcode-not-set
+        - urn:subtrack:problem:invalid-status-transition
+        - urn:subtrack:problem:payment-not-expected
+        - urn:subtrack:problem:payment-not-paid
+        - urn:subtrack:problem:price-change-exists
+        - urn:subtrack:problem:unsupported-media-type
+        - urn:subtrack:problem:validation-error
+        - urn:subtrack:problem:unsupported-format-version
+        - urn:subtrack:problem:too-many-attempts
+        - urn:subtrack:problem:internal-error
+    Problem:
+      description: RFC 9457 problem details.
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type:
+          $ref: "#/components/schemas/ProblemType"
+        title:
+          description: Constant English summary of the type, for developers and logs. Never displayed.
+          type: string
+          examples: ["Validation error"]
+        status:
+          description: The HTTP status code.
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          description: Developer-facing English explanation of this occurrence. Never displayed.
+          type: string
+        errors:
+          description: Only with `validation-error`; one entry per failed check.
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ValidationIssue"
+        retry_after:
+          description: Only with `too-many-attempts`; when the next attempt is accepted.
+          $ref: "#/components/schemas/Timestamp"
+    ValidationIssue:
+      type: object
+      additionalProperties: false
+      required: [location, pointer, code]
+      properties:
+        location:
+          type: string
+          enum: [body, query, path]
+        pointer:
+          description: |
+            JSON Pointer (RFC 6901) to the offending value: within the body (`/price_cents`,
+            `/data/payments/3/status`), or `/<name>` for a query or path parameter. `""` for the
+            whole body.
+          type: string
+          examples: ["/price_cents"]
+        code:
+          description: "What failed: `required`, `unknown_property`, `type`, `format` (date, timestamp or month), a JSON Schema keyword (`pattern`, `enum`, `minimum`, `maximum`, `min_length`, `max_length`), or `invalid` for a cross-field rule the operation describes."
+          type: string
+          enum:
+            - required
+            - unknown_property
+            - type
+            - format
+            - pattern
+            - enum
+            - minimum
+            - maximum
+            - min_length
+            - max_length
+            - invalid
+        params:
+          description: 'The limit that failed, for the message (e.g. `{"minimum": 1}`).'
+          type: object
+          additionalProperties: false
+          properties:
+            minimum:
+              type: integer
+            maximum:
+              type: integer
+            min_length:
+              type: integer
+            max_length:
+              type: integer
+            allowed:
+              type: array
+              items:
+                type: string
+
     Health:
       type: object
       additionalProperties: false
@@ -43,7 +1266,1116 @@ components:
           description: Application version.
           examples: ["0.1.0"]
         last_scheduler_run:
-          description: When the scheduler job (run at startup and then hourly) last finished (UTC), or null if it has never run.
+          description: "When the scheduler job last finished, or null if it never ran."
           type: [string, "null"]
           format: date-time
           examples: ["2026-11-12T18:10:00.000Z"]
+    AuthStatus:
+      type: object
+      additionalProperties: false
+      required: [passcode_enabled, unlocked, lock_policy, retry_after]
+      properties:
+        passcode_enabled:
+          type: boolean
+        unlocked:
+          description: True when no passcode is set, or this request has a valid session.
+          type: boolean
+        lock_policy:
+          $ref: "#/components/schemas/LockPolicy"
+        retry_after:
+          description: Set while unlocking is refused after too many wrong attempts.
+          anyOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+    UnlockRequest:
+      type: object
+      additionalProperties: false
+      required: [passcode]
+      properties:
+        passcode:
+          type: string
+          minLength: 1
+          maxLength: 128
+    PasscodeSet:
+      type: object
+      additionalProperties: false
+      required: [new]
+      properties:
+        current:
+          description: Required when a passcode is already set.
+          type: string
+          minLength: 1
+          maxLength: 128
+        new:
+          $ref: "#/components/schemas/Passcode"
+    PasscodeRemove:
+      type: object
+      additionalProperties: false
+      required: [current]
+      properties:
+        current:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    CatalogPlan:
+      type: object
+      additionalProperties: false
+      required: [plan, price_cents, interval_count, interval_unit]
+      properties:
+        plan:
+          $ref: "#/components/schemas/PlanName"
+        price_cents:
+          $ref: "#/components/schemas/Cents"
+        interval_count:
+          $ref: "#/components/schemas/IntervalCount"
+        interval_unit:
+          $ref: "#/components/schemas/IntervalUnit"
+    CatalogService:
+      type: object
+      additionalProperties: false
+      required: [id, name, domain, category, plans]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        domain:
+          description: Website domain, used to load the logo.
+          type: string
+          examples: ["spotify.com"]
+        category:
+          $ref: "#/components/schemas/Category"
+        plans:
+          description: Typical plans with price and interval.
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogPlan"
+    CatalogServiceList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogService"
+
+    Subscription:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - catalog_service_id
+        - name
+        - category
+        - plan_name
+        - price_cents
+        - interval_count
+        - interval_unit
+        - anchor_date
+        - status
+        - trial_end_date
+        - cancelled_at
+        - paused_at
+        - ends_on
+        - payment_method
+        - auto_confirm
+        - reminder_days
+        - website
+        - cancel_url
+        - notes
+        - archived_at
+        - next_renewal_date
+        - monthly_equivalent_cents
+        - yearly_equivalent_cents
+        - payment_count
+        - total_paid_cents
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        catalog_service_id:
+          description: The catalogue entry it was created from, or null for a free-text service.
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        category:
+          $ref: "#/components/schemas/Category"
+        plan_name:
+          anyOf:
+            - $ref: "#/components/schemas/PlanName"
+            - type: "null"
+        price_cents:
+          description: Current price (the latest price-history entry).
+          $ref: "#/components/schemas/Cents"
+        interval_count:
+          $ref: "#/components/schemas/IntervalCount"
+        interval_unit:
+          $ref: "#/components/schemas/IntervalUnit"
+        anchor_date:
+          description: First billing date; every billing date derives from it.
+          $ref: "#/components/schemas/Date"
+        status:
+          $ref: "#/components/schemas/SubscriptionStatus"
+        trial_end_date:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        cancelled_at:
+          description: Date it was cancelled; set while cancelled.
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        paused_at:
+          description: Date it was paused; set while paused.
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        ends_on:
+          description: Last day of access after cancelling; set while cancelled.
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        payment_method:
+          anyOf:
+            - $ref: "#/components/schemas/PaymentMethodLabel"
+            - type: "null"
+        auto_confirm:
+          description: Expected payments become paid on their due date.
+          type: boolean
+        reminder_days:
+          description: Renewal reminder lead time; null = the global default, -1 = off.
+          anyOf:
+            - type: integer
+              minimum: -1
+              maximum: 365
+            - type: "null"
+        website:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        cancel_url:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        notes:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+        archived_at:
+          description: When it was archived, or null.
+          anyOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        next_renewal_date:
+          description: "Next billing date on or after today, or null when it won't be charged again."
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        monthly_equivalent_cents:
+          description: Exact monthly equivalent of the current price, rounded once.
+          $ref: "#/components/schemas/Cents"
+        yearly_equivalent_cents:
+          description: Exact monthly equivalent × 12, rounded once.
+          $ref: "#/components/schemas/Cents"
+        payment_count:
+          description: How many payments it has, of any status.
+          type: integer
+          minimum: 0
+        total_paid_cents:
+          description: Sum of `paid_cents` of its paid payments.
+          $ref: "#/components/schemas/Cents"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    SubscriptionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subscription"
+    SubscriptionCreate:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          name,
+          category,
+          price_cents,
+          interval_count,
+          interval_unit,
+          anchor_date,
+        ]
+      properties:
+        catalog_service_id:
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        category:
+          $ref: "#/components/schemas/Category"
+        plan_name:
+          anyOf:
+            - $ref: "#/components/schemas/PlanName"
+            - type: "null"
+        price_cents:
+          $ref: "#/components/schemas/Cents"
+        interval_count:
+          $ref: "#/components/schemas/IntervalCount"
+        interval_unit:
+          $ref: "#/components/schemas/IntervalUnit"
+        anchor_date:
+          $ref: "#/components/schemas/Date"
+        status:
+          description: A new subscription starts as a trial or active.
+          type: string
+          enum: [trial, active]
+          default: active
+        trial_end_date:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        payment_method:
+          anyOf:
+            - $ref: "#/components/schemas/PaymentMethodLabel"
+            - type: "null"
+        auto_confirm:
+          type: boolean
+          default: false
+        reminder_days:
+          description: null = the global default, -1 = off.
+          anyOf:
+            - type: integer
+              minimum: -1
+              maximum: 365
+            - type: "null"
+        website:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        cancel_url:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        notes:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+        backfill:
+          description: Record every billing date before today as paid at the price in force.
+          type: boolean
+          default: false
+    SubscriptionUpdate:
+      description: The fields to change; at least one.
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        catalog_service_id:
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        category:
+          $ref: "#/components/schemas/Category"
+        plan_name:
+          anyOf:
+            - $ref: "#/components/schemas/PlanName"
+            - type: "null"
+        interval_count:
+          $ref: "#/components/schemas/IntervalCount"
+        interval_unit:
+          $ref: "#/components/schemas/IntervalUnit"
+        anchor_date:
+          $ref: "#/components/schemas/Date"
+        trial_end_date:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        ends_on:
+          description: Only while cancelled.
+          $ref: "#/components/schemas/Date"
+        payment_method:
+          anyOf:
+            - $ref: "#/components/schemas/PaymentMethodLabel"
+            - type: "null"
+        auto_confirm:
+          type: boolean
+        reminder_days:
+          anyOf:
+            - type: integer
+              minimum: -1
+              maximum: 365
+            - type: "null"
+        website:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        cancel_url:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        notes:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+    SubscriptionStatusChange:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          description: "`active` activates a trial, resumes a paused subscription or reactivates a cancelled one."
+          type: string
+          enum: [active, paused, cancelled]
+        date:
+          description: Pause or cancellation date; defaults to today. Not allowed with `active` (422 `invalid`).
+          $ref: "#/components/schemas/Date"
+        ends_on:
+          description: "Last day of access; only with `cancelled`. Defaults to the next billing date after the cancellation date."
+          $ref: "#/components/schemas/Date"
+
+    PriceChange:
+      type: object
+      additionalProperties: false
+      required: [id, subscription_id, price_cents, effective_from, created_at]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        subscription_id:
+          $ref: "#/components/schemas/Id"
+        price_cents:
+          $ref: "#/components/schemas/Cents"
+        effective_from:
+          $ref: "#/components/schemas/Date"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+    PriceChangeList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceChange"
+    PriceChangeCreate:
+      type: object
+      additionalProperties: false
+      required: [price_cents, effective_from]
+      properties:
+        price_cents:
+          $ref: "#/components/schemas/Cents"
+        effective_from:
+          $ref: "#/components/schemas/Date"
+
+    Payment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - subscription_id
+        - subscription_name
+        - due_date
+        - expected_cents
+        - paid_cents
+        - paid_date
+        - status
+        - source
+        - note
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        subscription_id:
+          $ref: "#/components/schemas/Id"
+        subscription_name:
+          description: Current name of the subscription, for lists across subscriptions.
+          $ref: "#/components/schemas/ServiceName"
+        due_date:
+          $ref: "#/components/schemas/Date"
+        expected_cents:
+          description: Price in force on the due date.
+          $ref: "#/components/schemas/Cents"
+        paid_cents:
+          description: Set exactly when the payment is paid.
+          anyOf:
+            - $ref: "#/components/schemas/Cents"
+            - type: "null"
+        paid_date:
+          description: Set exactly when the payment is paid.
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        source:
+          $ref: "#/components/schemas/PaymentSource"
+        note:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    PaymentList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+    ManualPaymentCreate:
+      type: object
+      additionalProperties: false
+      required: [subscription_id, paid_cents, paid_date]
+      properties:
+        subscription_id:
+          description: An unknown subscription answers 404.
+          $ref: "#/components/schemas/Id"
+        paid_cents:
+          $ref: "#/components/schemas/Cents"
+        paid_date:
+          $ref: "#/components/schemas/Date"
+        note:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+    PaymentUpdate:
+      description: The fields to change; at least one.
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        expected_cents:
+          $ref: "#/components/schemas/Cents"
+        paid_cents:
+          description: Only on a paid payment.
+          $ref: "#/components/schemas/Cents"
+        paid_date:
+          description: Only on a paid payment.
+          $ref: "#/components/schemas/Date"
+        note:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+    PaymentConfirm:
+      type: object
+      additionalProperties: false
+      properties:
+        paid_cents:
+          description: Defaults to `expected_cents`.
+          $ref: "#/components/schemas/Cents"
+        paid_date:
+          description: Defaults to the due date.
+          $ref: "#/components/schemas/Date"
+        note:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+    PaymentResolve:
+      description: Optional note when skipping or failing a payment; `{}` keeps the note as it is.
+      type: object
+      additionalProperties: false
+      properties:
+        note:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+
+    Notification:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          type,
+          severity,
+          subscription_id,
+          payment_id,
+          trigger_date,
+          params,
+          read_at,
+          created_at,
+        ]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        type:
+          $ref: "#/components/schemas/NotificationType"
+        severity:
+          $ref: "#/components/schemas/Severity"
+        subscription_id:
+          description: Null once the subscription is deleted.
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        payment_id:
+          description: The related payment (renewal, yearly renewal, overdue); null otherwise or once deleted.
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        trigger_date:
+          description: The day it was due to fire.
+          $ref: "#/components/schemas/Date"
+        params:
+          $ref: "#/components/schemas/NotificationParams"
+        read_at:
+          anyOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+    NotificationParams:
+      description: "Captured when the notification fired. `date` is the due date, the trial end date (`trial_ending`) or `ends_on` (`ending`); `amount_cents` is the expected amount, absent for `trial_ending` and `ending`."
+      type: object
+      additionalProperties: false
+      required: [name, date]
+      properties:
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        date:
+          $ref: "#/components/schemas/Date"
+        amount_cents:
+          $ref: "#/components/schemas/Cents"
+    NotificationList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+    UnreadCount:
+      type: object
+      additionalProperties: false
+      required: [count]
+      properties:
+        count:
+          type: integer
+          minimum: 0
+
+    StatsSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [monthly_equivalent_cents, yearly_equivalent_cents, active_count]
+      properties:
+        monthly_equivalent_cents:
+          $ref: "#/components/schemas/Cents"
+        yearly_equivalent_cents:
+          description: Exact monthly total × 12, rounded once.
+          $ref: "#/components/schemas/Cents"
+        active_count:
+          description: How many subscriptions the totals include.
+          type: integer
+          minimum: 0
+    CategoryBreakdown:
+      type: object
+      additionalProperties: false
+      required: [total_monthly_equivalent_cents, items]
+      properties:
+        total_monthly_equivalent_cents:
+          description: Equals `monthly_equivalent_cents` of `/stats/summary`.
+          $ref: "#/components/schemas/Cents"
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [category, monthly_equivalent_cents]
+            properties:
+              category:
+                $ref: "#/components/schemas/Category"
+              monthly_equivalent_cents:
+                $ref: "#/components/schemas/Cents"
+    PaymentMethodBreakdown:
+      type: object
+      additionalProperties: false
+      required: [total_monthly_equivalent_cents, items]
+      properties:
+        total_monthly_equivalent_cents:
+          description: Equals `monthly_equivalent_cents` of `/stats/summary`.
+          $ref: "#/components/schemas/Cents"
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [payment_method, monthly_equivalent_cents]
+            properties:
+              payment_method:
+                description: The label, or null for subscriptions without one.
+                anyOf:
+                  - $ref: "#/components/schemas/PaymentMethodLabel"
+                  - type: "null"
+              monthly_equivalent_cents:
+                $ref: "#/components/schemas/Cents"
+    UpcomingPayments:
+      type: object
+      additionalProperties: false
+      required: [from, to, total_cents, items]
+      properties:
+        from:
+          description: Today.
+          $ref: "#/components/schemas/Date"
+        to:
+          description: Today + `days`.
+          $ref: "#/components/schemas/Date"
+        total_cents:
+          description: Sum of the items' `expected_cents`.
+          $ref: "#/components/schemas/Cents"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+    MonthlyStats:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthStats"
+    MonthStats:
+      type: object
+      additionalProperties: false
+      required:
+        [month, planned_cents, actual_cents, skipped_count, failed_count]
+      properties:
+        month:
+          $ref: "#/components/schemas/Month"
+        planned_cents:
+          description: Sum of `expected_cents` of every payment due in the month, whatever its status (projected spend for coming months).
+          $ref: "#/components/schemas/Cents"
+        actual_cents:
+          description: Sum of `paid_cents` of the paid payments due in the month.
+          $ref: "#/components/schemas/Cents"
+        skipped_count:
+          type: integer
+          minimum: 0
+        failed_count:
+          type: integer
+          minimum: 0
+
+    Settings:
+      type: object
+      additionalProperties: false
+      required:
+        - default_reminder_days
+        - trial_reminder_days
+        - yearly_reminder_days
+        - ending_reminder_days
+        - payment_horizon_days
+        - logo_dev_token
+        - locale
+        - theme
+        - font_size
+        - reduced_motion
+        - week_start
+        - lock_policy
+      properties:
+        default_reminder_days:
+          description: Renewal reminder lead time.
+          $ref: "#/components/schemas/ReminderDays"
+        trial_reminder_days:
+          description: Trial-ending lead time.
+          $ref: "#/components/schemas/ReminderDays"
+        yearly_reminder_days:
+          description: Lead time for yearly-or-longer intervals.
+          $ref: "#/components/schemas/ReminderDays"
+        ending_reminder_days:
+          description: Lead time before a cancelled subscription ends.
+          $ref: "#/components/schemas/ReminderDays"
+        payment_horizon_days:
+          description: How far ahead expected payments are generated.
+          type: integer
+          minimum: 1
+          maximum: 366
+        logo_dev_token:
+          description: Logo.dev publishable key, safe in client code; null = monograms only.
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 200
+            - type: "null"
+        locale:
+          description: UI language; null = follow the browser.
+          anyOf:
+            - type: string
+              enum: [en, es]
+            - type: "null"
+        theme:
+          type: string
+          enum: [system, light, dark]
+        font_size:
+          type: string
+          enum: [sm, md, lg]
+        reduced_motion:
+          type: string
+          enum: [system, always]
+        week_start:
+          description: First day of the week, 1 = Monday … 7 = Sunday.
+          type: integer
+          minimum: 1
+          maximum: 7
+        lock_policy:
+          $ref: "#/components/schemas/LockPolicy"
+
+    ClockSet:
+      type: object
+      additionalProperties: false
+      required: [now]
+      properties:
+        now:
+          $ref: "#/components/schemas/Timestamp"
+
+    Export:
+      type: object
+      additionalProperties: false
+      required: [format_version, exported_at, app_version, data]
+      properties:
+        format_version:
+          description: Changes only when the file structure changes.
+          type: integer
+          const: 1
+        exported_at:
+          $ref: "#/components/schemas/Timestamp"
+        app_version:
+          type: string
+          examples: ["0.1.0"]
+        data:
+          $ref: "#/components/schemas/ExportData"
+    ImportFile:
+      description: An export file of any format version; `data` is checked against that version's structure.
+      type: object
+      additionalProperties: false
+      required: [format_version, exported_at, app_version, data]
+      properties:
+        format_version:
+          type: integer
+          minimum: 1
+        exported_at:
+          $ref: "#/components/schemas/Timestamp"
+        app_version:
+          type: string
+        data:
+          description: "`ExportData` for format version 1."
+          type: object
+    ImportResult:
+      type: object
+      additionalProperties: false
+      required: [subscriptions, price_history, payments, notifications]
+      properties:
+        subscriptions:
+          type: integer
+          minimum: 0
+        price_history:
+          type: integer
+          minimum: 0
+        payments:
+          type: integer
+          minimum: 0
+        notifications:
+          type: integer
+          minimum: 0
+    ExportData:
+      type: object
+      additionalProperties: false
+      required:
+        [subscriptions, price_history, payments, notifications, settings]
+      properties:
+        subscriptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExportSubscription"
+        price_history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExportPriceChange"
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExportPayment"
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExportNotification"
+        settings:
+          $ref: "#/components/schemas/ExportSettings"
+    ExportSubscription:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - catalog_service_id
+        - name
+        - category
+        - plan_name
+        - price_cents
+        - interval_count
+        - interval_unit
+        - anchor_date
+        - status
+        - trial_end_date
+        - cancelled_at
+        - paused_at
+        - ends_on
+        - payment_method
+        - auto_confirm
+        - reminder_days
+        - website
+        - cancel_url
+        - notes
+        - archived_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        catalog_service_id:
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        category:
+          $ref: "#/components/schemas/Category"
+        plan_name:
+          anyOf:
+            - $ref: "#/components/schemas/PlanName"
+            - type: "null"
+        price_cents:
+          $ref: "#/components/schemas/Cents"
+        interval_count:
+          $ref: "#/components/schemas/IntervalCount"
+        interval_unit:
+          $ref: "#/components/schemas/IntervalUnit"
+        anchor_date:
+          $ref: "#/components/schemas/Date"
+        status:
+          $ref: "#/components/schemas/SubscriptionStatus"
+        trial_end_date:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        cancelled_at:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        paused_at:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        ends_on:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        payment_method:
+          anyOf:
+            - $ref: "#/components/schemas/PaymentMethodLabel"
+            - type: "null"
+        auto_confirm:
+          type: boolean
+        reminder_days:
+          anyOf:
+            - type: integer
+              minimum: -1
+              maximum: 365
+            - type: "null"
+        website:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        cancel_url:
+          anyOf:
+            - $ref: "#/components/schemas/WebUrl"
+            - type: "null"
+        notes:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+        archived_at:
+          anyOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    ExportPriceChange:
+      type: object
+      additionalProperties: false
+      required: [id, subscription_id, price_cents, effective_from, created_at]
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        subscription_id:
+          $ref: "#/components/schemas/Id"
+        price_cents:
+          $ref: "#/components/schemas/Cents"
+        effective_from:
+          $ref: "#/components/schemas/Date"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+    ExportPayment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - subscription_id
+        - due_date
+        - expected_cents
+        - paid_cents
+        - paid_date
+        - status
+        - source
+        - note
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        subscription_id:
+          $ref: "#/components/schemas/Id"
+        due_date:
+          $ref: "#/components/schemas/Date"
+        expected_cents:
+          $ref: "#/components/schemas/Cents"
+        paid_cents:
+          anyOf:
+            - $ref: "#/components/schemas/Cents"
+            - type: "null"
+        paid_date:
+          anyOf:
+            - $ref: "#/components/schemas/Date"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        source:
+          $ref: "#/components/schemas/PaymentSource"
+        note:
+          anyOf:
+            - $ref: "#/components/schemas/Note"
+            - type: "null"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    ExportNotification:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - severity
+        - subscription_id
+        - payment_id
+        - trigger_date
+        - dedupe_key
+        - params
+        - read_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        type:
+          $ref: "#/components/schemas/NotificationType"
+        severity:
+          $ref: "#/components/schemas/Severity"
+        subscription_id:
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        payment_id:
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        trigger_date:
+          $ref: "#/components/schemas/Date"
+        dedupe_key:
+          type: string
+          minLength: 1
+        params:
+          $ref: "#/components/schemas/NotificationParams"
+        read_at:
+          anyOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    ExportSettings:
+      description: The user settings; never the passcode, attempt counters or `last_scheduler_run`.
+      type: object
+      additionalProperties: false
+      required:
+        - default_reminder_days
+        - trial_reminder_days
+        - yearly_reminder_days
+        - ending_reminder_days
+        - payment_horizon_days
+        - logo_dev_token
+        - locale
+        - theme
+        - font_size
+        - reduced_motion
+        - week_start
+        - lock_policy
+      properties:
+        default_reminder_days:
+          $ref: "#/components/schemas/ReminderDays"
+        trial_reminder_days:
+          $ref: "#/components/schemas/ReminderDays"
+        yearly_reminder_days:
+          $ref: "#/components/schemas/ReminderDays"
+        ending_reminder_days:
+          $ref: "#/components/schemas/ReminderDays"
+        payment_horizon_days:
+          type: integer
+          minimum: 1
+          maximum: 366
+        logo_dev_token:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 200
+            - type: "null"
+        locale:
+          anyOf:
+            - type: string
+              enum: [en, es]
+            - type: "null"
+        theme:
+          type: string
+          enum: [system, light, dark]
+        font_size:
+          type: string
+          enum: [sm, md, lg]
+        reduced_motion:
+          type: string
+          enum: [system, always]
+        week_start:
+          type: integer
+          minimum: 1
+          maximum: 7
+        lock_policy:
+          $ref: "#/components/schemas/LockPolicy"

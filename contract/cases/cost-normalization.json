@@ -1,0 +1,231 @@
+{
+  "$schema": "./schema/cost-normalization.schema.json",
+  "description": "Monthly equivalent = price ÷ interval in months (1 year = 12 months, a week = 12/52 of a month, a day = 12/365 of a month); yearly = exact monthly × 12. Both are computed exactly and rounded once, half-up, to the cent.",
+  "rules": ["BR-4", "BR-5", "BR-22"],
+  "cases": [
+    {
+      "id": "srs-monthly",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "SRS table: 11.99 € monthly.",
+      "input": {
+        "price_cents": 1199,
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        }
+      },
+      "expected": {
+        "monthly_cents": 1199,
+        "yearly_cents": 14388
+      }
+    },
+    {
+      "id": "srs-yearly",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "SRS table: 49.99 € yearly is 4.1658… € a month. The yearly equivalent is the exact monthly × 12 = 49.99 €, not the rounded 4.17 € × 12 = 50.04 €.",
+      "input": {
+        "price_cents": 4999,
+        "interval": {
+          "count": 1,
+          "unit": "year"
+        }
+      },
+      "expected": {
+        "monthly_cents": 417,
+        "yearly_cents": 4999
+      }
+    },
+    {
+      "id": "srs-quarterly",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "SRS table: 14.99 € every 3 months is 4.9966… € a month; yearly 59.96 €, not 5.00 € × 12.",
+      "input": {
+        "price_cents": 1499,
+        "interval": {
+          "count": 3,
+          "unit": "month"
+        }
+      },
+      "expected": {
+        "monthly_cents": 500,
+        "yearly_cents": 5996
+      }
+    },
+    {
+      "id": "srs-weekly",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "SRS table: 2.99 € weekly charges 52/12 times a month: 12.9566… €; yearly 52 × 2.99 €.",
+      "input": {
+        "price_cents": 299,
+        "interval": {
+          "count": 1,
+          "unit": "week"
+        }
+      },
+      "expected": {
+        "monthly_cents": 1296,
+        "yearly_cents": 15548
+      }
+    },
+    {
+      "id": "daily",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "1.00 € daily charges 365/12 times a month: 30.4166… €; yearly 365 × 1.00 €.",
+      "input": {
+        "price_cents": 100,
+        "interval": {
+          "count": 1,
+          "unit": "day"
+        }
+      },
+      "expected": {
+        "monthly_cents": 3042,
+        "yearly_cents": 36500
+      }
+    },
+    {
+      "id": "every-3-days",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "1.00 € every 3 days: 365/36 € a month (10.1388… €), yearly 365/3 € (121.666… €).",
+      "input": {
+        "price_cents": 100,
+        "interval": {
+          "count": 3,
+          "unit": "day"
+        }
+      },
+      "expected": {
+        "monthly_cents": 1014,
+        "yearly_cents": 12167
+      }
+    },
+    {
+      "id": "every-14-days",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "10.00 € every 14 days: 10 × 365/168 € a month (21.7261… €), yearly 10 × 365/14 € (260.714… €).",
+      "input": {
+        "price_cents": 1000,
+        "interval": {
+          "count": 14,
+          "unit": "day"
+        }
+      },
+      "expected": {
+        "monthly_cents": 2173,
+        "yearly_cents": 26071
+      }
+    },
+    {
+      "id": "every-2-weeks-rounds-half-up",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "9.99 € every 2 weeks is exactly 21.645 € a month, which rounds half-up to 21.65 €.",
+      "input": {
+        "price_cents": 999,
+        "interval": {
+          "count": 2,
+          "unit": "week"
+        }
+      },
+      "expected": {
+        "monthly_cents": 2165,
+        "yearly_cents": 25974
+      }
+    },
+    {
+      "id": "half-cent-rounds-up-not-to-even",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "0.05 € every 2 months is exactly 2.5 cents a month: half-up gives 3; banker's rounding would give 2.",
+      "input": {
+        "price_cents": 5,
+        "interval": {
+          "count": 2,
+          "unit": "month"
+        }
+      },
+      "expected": {
+        "monthly_cents": 3,
+        "yearly_cents": 30
+      }
+    },
+    {
+      "id": "half-yearly",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "59.99 € every 6 months is 9.9983… € a month; yearly exactly 2 × 59.99 €.",
+      "input": {
+        "price_cents": 5999,
+        "interval": {
+          "count": 6,
+          "unit": "month"
+        }
+      },
+      "expected": {
+        "monthly_cents": 1000,
+        "yearly_cents": 11998
+      }
+    },
+    {
+      "id": "every-2-years-yearly-rounds-half-up",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "99.99 € every 2 years: 4.16625 € a month; the yearly equivalent is exactly 49.995 €, which rounds half-up to 50.00 €.",
+      "input": {
+        "price_cents": 9999,
+        "interval": {
+          "count": 2,
+          "unit": "year"
+        }
+      },
+      "expected": {
+        "monthly_cents": 417,
+        "yearly_cents": 5000
+      }
+    },
+    {
+      "id": "twelve-months-equal-one-year",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "12 months normalize exactly like 1 year.",
+      "input": {
+        "price_cents": 4999,
+        "interval": {
+          "count": 12,
+          "unit": "month"
+        }
+      },
+      "expected": {
+        "monthly_cents": 417,
+        "yearly_cents": 4999
+      }
+    },
+    {
+      "id": "one-cent-weekly",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "Tiny amounts: 0.01 € weekly is 0.0433… € a month, yearly 0.52 €.",
+      "input": {
+        "price_cents": 1,
+        "interval": {
+          "count": 1,
+          "unit": "week"
+        }
+      },
+      "expected": {
+        "monthly_cents": 4,
+        "yearly_cents": 52
+      }
+    },
+    {
+      "id": "free",
+      "rules": ["BR-4", "BR-5", "BR-22"],
+      "description": "A free plan costs nothing per month or year.",
+      "input": {
+        "price_cents": 0,
+        "interval": {
+          "count": 1,
+          "unit": "month"
+        }
+      },
+      "expected": {
+        "monthly_cents": 0,
+        "yearly_cents": 0
+      }
+    }
+  ]
+}
