@@ -53,7 +53,7 @@ IDs (FR-x) are meant to be referenced from tests and commits in both backends.
 - **FR-4** Show the next renewal date and the monthly-equivalent cost for each subscription.
 - **FR-5** List subscriptions with filter (status, category) and sort (next renewal, cost, name).
 - **FR-27** When a new subscription's anchor date is in the past, the user can choose to backfill: every past billing date is recorded as paid at the price in force, so history and statistics start complete.
-- **FR-28** Archive a subscription: it disappears from lists, totals and reminders, but its payments stay in spending history. Archived subscriptions can be listed and restored.
+- **FR-28** Archive a subscription: it disappears from lists, totals and reminders, but its payments stay in spending history. Archiving also stops payment generation and auto-confirm and removes its future expected payments; unarchiving generates payments again from that day on (BR-27). Archived subscriptions can be listed and restored.
 - **FR-29** Deleting a subscription first shows a warning with how many payments and how much past spend will disappear from history, and offers to archive instead.
 - **FR-46** When the payment method label or the notes look like sensitive data (a full card number or an IBAN), the form shows a warning recommending a short label such as "Visa ··4417". The warning does not block saving.
 
@@ -127,7 +127,7 @@ The information the system keeps, independent of how it is stored (the schema is
 | Concept | Information |
 | --- | --- |
 | Catalogue service | Name, website domain, category, typical plans with price and interval |
-| Subscription | Service, category, plan, current price, billing interval, anchor date, status, trial end, cancellation date, ends on, pause date, archived, payment method label, auto-confirm, reminder override, website, cancel link, notes |
+| Subscription | Service, category, plan, current price, billing interval, anchor date, status, trial end, cancellation date, ends on, pause date, resume date, archived, unarchive date, payment method label, auto-confirm, reminder override, website, cancel link, notes |
 | Price change | New price and the date it takes effect |
 | Payment | Due date, expected amount, paid amount and date, status (expected, paid, skipped, failed), origin (scheduled, backfill, manual), note |
 | Notification | Type, severity, related subscription or payment, message parameters (the text is rendered in the user's language), date it fired, read or unread |
@@ -161,7 +161,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 - **BR-5** Yearly equivalent = monthly equivalent × 12.
 - **BR-22** Derived values (monthly and yearly equivalents, and their totals) are computed exactly and rounded once, half-up to the cent, only at the end. A derived value is never computed from another rounded value: the yearly equivalent is the exact monthly × 12, rounded once.
 - **BR-25** Sums of prices and recorded payments (spend per month, total paid) are whole cents and are never rounded.
-- **BR-26** When parts must add up to a shown total (category breakdown, charts), parts are allocated by largest remainder: round every part down, then give the leftover cents one by one to the parts with the largest remainders. Example: three weekly plans at 2.99 € are 12.9567 € each; the total is 38.87 € and the parts show 12.96 €, 12.96 € and 12.95 €.
+- **BR-26** When parts must add up to a shown total (category breakdown, charts), parts are allocated by largest remainder: round every part down, then give the leftover cents one by one to the parts with the largest remainders. Example: three weekly plans at 2.99 € are 12.9567 € each; the total is 38.87 € and the parts show 12.96 €, 12.96 € and 12.95 €. Before allocating, parts are always put in a fixed order: categories by key, subscriptions by id. When two remainders are equal, the earlier part gets its cent first.
 
 | Price | Interval | Monthly equivalent |
 | --- | --- | --- |
@@ -172,21 +172,23 @@ These rules are the shared core of both backends. Each one becomes a test case t
 
 ### Payment generation
 
-- **BR-6** For each active or trial subscription, create `expected` payments for every billing date from the anchor up to today + horizon. Billing dates before the subscription was created in the app are not generated unless the user asks for a backfill.
+- **BR-6** For each active or trial subscription, create `expected` payments for every billing date on or after the day the subscription was added to the app (the date of its creation in Europe/Madrid), up to and including today + horizon. Earlier billing dates are generated only by a backfill (FR-27). Pausing, resuming and archiving narrow this further (BR-10, BR-27).
 - **BR-7** Generation is idempotent: the unique key (subscription\_id, due\_date) means re-running it never duplicates.
 - **BR-8** `expected_cents` = the price-history entry in force on the due date.
 - **BR-9** A price change updates `expected_cents` on payments still `expected` with due\_date ≥ effective\_from. Paid, skipped and failed payments never change.
-- **BR-10** Pausing or cancelling deletes scheduled payments still `expected` with due\_date after the pause date, or on or after ends\_on when cancelling. ends\_on defaults to the next billing date after cancellation and can be edited. Resuming regenerates payments from the anchor.
+- **BR-10** Pausing or cancelling deletes scheduled payments still `expected` with due\_date after the pause date, or on or after ends\_on when cancelling. ends\_on defaults to the next billing date after cancellation and can be edited. While paused, no payments are generated. Resuming generates only billing dates on or after the resume date, so no payments are created for the paused period. Reactivating a cancelled subscription works the same way, from the reactivation date. Dates are still calculated from the anchor (BR-1), so the day of the month never changes.
 - **BR-11** With auto\_confirm on, an `expected` payment becomes `paid` on its due date with paid\_cents = expected\_cents.
 - **BR-12** A trial subscription becomes active on the run after trial\_end\_date, unless cancelled first.
+- **BR-27** Archiving stops payment generation, reminders and auto-confirm for the subscription, and deletes its scheduled payments still `expected` with due\_date after the archive date. Past payments are kept. Unarchiving generates only billing dates on or after the unarchive date, like resuming (BR-10).
+- **BR-28** A subscription with status trial must have a trial end date. It is required when a trial is created and can't be cleared while the subscription is a trial.
 
 ### Reminders
 
 - **BR-13** For each upcoming `expected` payment, a renewal notification fires on due\_date − reminder\_days (subscription override, else global default). -1 means off.
-- **BR-14** Yearly-or-longer intervals use `yearly_reminder_days` instead of the normal lead time.
+- **BR-14** Yearly-or-longer intervals use `yearly_reminder_days` instead of the normal lead time and fire a yearly renewal notification. Yearly or longer means unit year (any count) or unit month with a count of 12 or more; intervals in days or weeks never count, however long. A per-subscription override (FR-15) replaces the lead time for yearly plans too. -1 turns off renewal and yearly renewal notifications, but not trial ending, ending or overdue ones.
 - **BR-15** Trial ending fires on trial\_end\_date − `trial_reminder_days`.
 - **BR-16** Overdue fires once, the day after due\_date, for a payment still `expected`.
-- **BR-17** Every notification has a dedupe key (`type:subscription:date`). Creating it twice is a no-op.
+- **BR-17** Every notification has a dedupe key `type:subscription_id:trigger_date`. It uses the trigger date (the day the notification is due to fire), not the event date, so both ending notifications for the same ends\_on are kept (BR-23). Creating a notification whose key already exists is a no-op.
 - **BR-21** An overdue payment stays `expected` until the user confirms, skips or fails it. The app never changes its status on its own.
 - **BR-23** An ending notification fires on ends\_on − `ending_reminder_days` (default 7) and again on ends\_on, for cancelled subscriptions only.
 - **BR-24** Severity: overdue is critical; ending and trial ending are warning; renewal and yearly renewal are info.
@@ -194,7 +196,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 ### Scheduler and catch-up
 
 - **BR-18** One job, run on backend startup and then every hour. Steps in order: activate ended trials, generate payments, auto-confirm, create notifications, store `last_scheduler_run`.
-- **BR-19** Catch-up: notifications are created for every trigger date between `last_scheduler_run` and today, so reminders that fell while the containers were stopped still appear on the next start. Triggers whose payment is already paid or past are skipped, except overdue.
+- **BR-19** Catch-up: notifications are created for every trigger date from the date of `last_scheduler_run` to today, both inclusive, so reminders that fell while the containers were stopped still appear on the next start. On the first run, only today's triggers are created. A renewal, yearly renewal, trial-ending or ending trigger is skipped when its event date (due date, trial end date, ends\_on) is before today, or when its payment is no longer `expected`. An event today still fires. Overdue fires once, while the payment is still `expected`.
 - **BR-20** The job is safe to run any number of times (BR-7, BR-17), so a restart mid-run is harmless.
 
 ## Non-functional requirements
@@ -217,20 +219,28 @@ These rules are the shared core of both backends. Each one becomes a test case t
 
 **Out of scope for v1:** user accounts and multiple users, encryption of the stored data, currencies other than EUR, email or push notifications, bank or card imports, receipt-email parsing, shared subscriptions split between people, budgets and spending limits. Services' own APIs are not used: none expose billing data to third parties.
 
-**Decided on 2026-11-10**
+**Decided**
 
-| Question | Decision |
-| --- | --- |
-| Backfill past payments | Yes, optional per new subscription (FR-27) |
-| Overdue payments | Stay expected until the user acts (BR-21) |
-| Initial catalogue | Mainstream services, starting with the list under Initial catalogue |
-| Frontend and logo provider | Design decisions, recorded in Subtrack — Software Design Description (SDD) |
-| Cancelled but still active | Ends on date (FR-3, BR-10, BR-23) |
-| Deleting a subscription | Warn and offer archive (FR-28, FR-29) |
-| Rounding of totals | Round once at the end (BR-22) |
-| Notification channels | In-app only, made prominent (FR-17, FR-30, FR-31) |
-| UI language | English and Spanish (FR-32 to FR-34) |
-| Settings page | Appearance, region and privacy lock added (FR-26, FR-35 to FR-45) |
+| Date | Question | Decision |
+| --- | --- | --- |
+| 2026-11-10 | Backfill past payments | Yes, optional per new subscription (FR-27) |
+| 2026-11-10 | Overdue payments | Stay expected until the user acts (BR-21) |
+| 2026-11-10 | Initial catalogue | Mainstream services, starting with the list under Initial catalogue |
+| 2026-11-10 | Frontend and logo provider | Design decisions, recorded in Subtrack — Software Design Description (SDD) |
+| 2026-11-10 | Cancelled but still active | Ends on date (FR-3, BR-10, BR-23) |
+| 2026-11-10 | Deleting a subscription | Warn and offer archive (FR-28, FR-29) |
+| 2026-11-10 | Rounding of totals | Round once at the end (BR-22) |
+| 2026-11-10 | Notification channels | In-app only, made prominent (FR-17, FR-30, FR-31) |
+| 2026-11-10 | UI language | English and Spanish (FR-32 to FR-34) |
+| 2026-11-10 | Settings page | Appearance, region and privacy lock added (FR-26, FR-35 to FR-45) |
+| 2026-11-21 | Payment horizon and creation day | Both inclusive: from the day the subscription was added up to today + horizon (BR-6) |
+| 2026-11-21 | Billing dates during a pause | Not generated; resuming or reactivating generates from that day, keeping the anchor's day (BR-10) |
+| 2026-11-21 | Yearly reminders | Unit year, or 12 or more months; the override and -1 apply to them too (BR-14) |
+| 2026-11-21 | Notification dedupe key | Built from the trigger date (BR-17) |
+| 2026-11-21 | Catch-up of past events | Skipped when the event is before today or the payment is no longer expected; overdue fires once (BR-19) |
+| 2026-11-21 | Allocation ties | Earlier part first, parts in a fixed key or id order (BR-26) |
+| 2026-11-21 | Archived subscriptions | No generation, reminders or auto-confirm; future expected payments removed (FR-28, BR-27) |
+| 2026-11-21 | Trial end date | Required while in trial (BR-28) |
 
 **Open questions**
 
