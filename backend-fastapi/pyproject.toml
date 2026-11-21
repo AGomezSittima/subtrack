@@ -36,6 +36,9 @@ select = [
   "TD", "FIX001", "FIX003", "FIX004",
 ]
 
+[tool.ruff.lint.pylint]
+max-args = 6
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
 
