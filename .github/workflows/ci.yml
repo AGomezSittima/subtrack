@@ -52,6 +52,7 @@ jobs:
               - "frontend/**"
               - "e2e/**"
               - "contract/**"
+              - "tooling/**"
               - "package.json"
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
@@ -60,7 +61,6 @@ jobs:
             fastapi:
               - *shared
               - "backend-fastapi/**"
-              # The fastapi tests build their database from the migrations.
               - "db/**"
             spring:
               - *shared
