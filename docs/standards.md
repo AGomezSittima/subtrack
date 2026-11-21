@@ -19,6 +19,17 @@ When two principles pull apart, simplicity wins: this is a small single-user app
 | DRY | Each fact has one source: the OpenAPI contract for types, the SQL migrations for the schema, `@theme` tokens for design values. Duplicate code is merged on the third copy, not the second (rule of three). |
 | YAGNI | No hooks for features the SRS doesn't list. Out-of-scope items stay out until they move into scope. |
 
+## Comments
+
+Names, types and tests explain what the code does. Comments are the exception.
+
+- **No comments by default.** If code seems to need one, rename, extract a function or add a test instead. Docstrings, Javadoc and JSDoc follow the same rule.
+- **Only a non-obvious why caused by an external constraint, in one line.** The constraint lives outside our code: SQLite, a library, a protocol, a browser. Example: `-- IS, not =: a CHECK that evaluates to NULL passes.`
+- **No requirement IDs in code or comments.** FR-x, BR-x and NFR-x appear only in test names, the `rules` field of `contract/cases/*.json`, commit messages and PR descriptions (and in the docs that define them: SRS, SDD, ADRs).
+- **No comments explaining a workaround.** Fix the code; or open a GitHub issue and leave only `TODO(#<issue>): <one line>`; or, for a deliberate trade-off, record it in an ADR.
+- **`TODO` always links an issue**, as `TODO(#<issue>)`. `FIXME`, `XXX` and `HACK` are not used. Lint enforces both: Ruff (`TD`, `FIX001`, `FIX003`, `FIX004`), ESLint (`no-warning-comments` and the local `subtrack/todo-needs-issue` rule) and Checkstyle (`TodoComment`).
+- **OpenAPI and JSON Schema descriptions stay, but short**: one sentence on meaning or a constraint the schema can't express.
+
 ## External dependencies behind abstractions
 
 Everything outside our own domain code sits behind an interface we own (ports and adapters). Application code never imports a vendor SDK, an HTTP client or the system clock directly.
@@ -110,23 +121,24 @@ Use the standard scale first, a project token second, and an arbitrary value onl
 
 1. **Standard utilities**: `p-4`, `text-sm`, `rounded-lg`, `gap-2`. If one is close enough, use it.
 2. **Custom token**: if no standard value fits and the value will be reused, add a variable to `:root` in `src/styles/global.css` and map it in `@theme inline`. It becomes a normal utility (`bg-primary`, `text-muted-foreground`, `bg-success`).
-3. **Arbitrary value** (`w-[37px]`): only for a true one-off with no meaning elsewhere, with a short comment explaining why.
+3. **Arbitrary value** (`w-[37px]`): only for a true one-off; otherwise add a token.
+
+`src/styles/global.css`:
 
 ```css
-/* src/styles/global.css */
 @import "tailwindcss";
 
 :root {
   --radius: 0.75rem;
   --background: oklch(0.99 0.005 260);
   --foreground: oklch(0.2 0.02 260);
-  --primary: oklch(0.55 0.18 160);          /* Subtrack brand */
+  --primary: oklch(0.55 0.18 160);
   --primary-foreground: oklch(0.98 0 0);
   --muted: oklch(0.95 0.01 260);
   --muted-foreground: oklch(0.5 0.02 260);
   --destructive: oklch(0.58 0.22 25);
-  --success: oklch(0.62 0.16 150);          /* project token, not in shadcn */
-  --warning: oklch(0.78 0.15 80);           /* project token, not in shadcn */
+  --success: oklch(0.62 0.16 150);
+  --warning: oklch(0.78 0.15 80);
   --font-sans: "Inter Variable", system-ui, sans-serif;
 }
 

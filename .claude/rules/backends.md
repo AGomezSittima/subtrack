@@ -36,6 +36,10 @@ Full detail: `docs/sdd.md` (Backend design, Privacy lock, Date and timestamp sto
 - Test-only endpoints (`/admin/run-scheduler`, `/admin/clock`, `/admin/reset`) return 404 unless `SUBTRACK_TEST_MODE=true`.
 - The server makes no outbound network calls.
 
+## Comments
+- None by default; docstrings and Javadoc included. Only a one-line why caused by an external constraint.
+- No FR/BR/NFR IDs in code or comments. No workaround comments: fix it, `TODO(#<issue>)`, or an ADR. Ruff `TD`/`FIX` and Checkstyle `TodoComment` enforce the `TODO` form.
+
 ## Python / FastAPI
 - uv with committed lockfile. Ruff for format and lint; full type hints, strict type checker.
 - Pydantic models for the API; settings via pydantic-settings. stdlib `logging`, never `print`.
