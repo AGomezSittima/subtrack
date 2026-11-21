@@ -60,6 +60,8 @@ jobs:
             fastapi:
               - *shared
               - "backend-fastapi/**"
+              # The fastapi tests build their database from the migrations.
+              - "db/**"
             spring:
               - *shared
               - "backend-spring/**"
