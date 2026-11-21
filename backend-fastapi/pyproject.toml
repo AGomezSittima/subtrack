@@ -30,10 +30,8 @@ target-version = "py314"
 [tool.ruff.lint]
 select = [
   "E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "PT", "S", "ANN", "RET",
-  "PL", "PTH", "TID",
-  "DTZ", # no naive datetimes or direct now(): time comes from the clock module
-  "T20", # no print
-  "LOG", "G",
+  "PL", "PTH", "TID", "DTZ", "T20", "LOG", "G",
+  "TD", "FIX001", "FIX003", "FIX004",
 ]
 
 [tool.ruff.lint.per-file-ignores]
