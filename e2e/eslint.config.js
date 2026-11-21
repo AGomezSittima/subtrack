@@ -47,7 +47,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["api/**/*.ts", "ui/**/*.ts"],
+    files: ["api/**/*.ts", "ui/**/*.ts", "docs/**/*.ts"],
     extends: [playwright.configs["flat/recommended"]],
     rules: {
       "playwright/no-raw-locators": ["error", { allowed: ["html"] }],

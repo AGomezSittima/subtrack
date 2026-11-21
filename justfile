@@ -3,7 +3,7 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-# Recipes see the same optional .env as Docker Compose (SUBTRACK_PORT; see .env.example).
+# Recipes see the same optional .env as Docker Compose (SUBTRACK_PORT, SUBTRACK_DOCS_PORT; see .env.example).
 set dotenv-load
 
 # Test stacks use their own Compose project, so they never touch the real `subs-data` volume.
@@ -19,9 +19,16 @@ up profile:
     docker compose --profile {{ profile }} up -d --build --wait
     @echo "Subtrack ({{ profile }}) is running at http://127.0.0.1:${SUBTRACK_PORT:-8080}"
 
+# Start the stack with one backend plus the API docs on http://127.0.0.1:8081 (or $SUBTRACK_DOCS_PORT)
+dev profile:
+    @just _check-profile {{ profile }}
+    docker compose --profile {{ profile }} --profile dev up -d --build --wait
+    @echo "Subtrack ({{ profile }}) is running at http://127.0.0.1:${SUBTRACK_PORT:-8080}"
+    @echo "API docs are at http://127.0.0.1:${SUBTRACK_DOCS_PORT:-8081}"
+
 # Stop the stack; data stays on the volume
 down:
-    docker compose --profile fastapi --profile spring down
+    docker compose --profile fastapi --profile spring --profile dev down
 
 # Regenerate types from contract/openapi.yaml
 gen:
@@ -89,16 +96,20 @@ test-e2e: (test-e2e-profile "fastapi") (test-e2e-profile "spring")
 test-e2e-profile profile:
     @just _with-test-stack {{ profile }} ui
 
+# API docs check against a test stack with the dev profile and one backend (default fastapi)
+test-docs profile="fastapi":
+    @just _with-test-stack {{ profile }} docs dev
+
 # Install the Playwright browser used by the UI suite
 e2e-setup:
     pnpm --filter @subtrack/e2e exec playwright install chromium
 
 [private]
-_with-test-stack profile project:
+_with-test-stack profile project extra_profile="":
     #!/usr/bin/env bash
     set -euo pipefail
     just _check-profile {{ profile }}
-    compose="{{ test_compose }} --profile {{ profile }}"
+    compose="{{ test_compose }} --profile {{ profile }}{{ if extra_profile != "" { " --profile " + extra_profile } else { "" } }}"
     # On failure (including a stack that never gets healthy), show why before tearing it down.
     cleanup() {
         local status=$?

@@ -17,5 +17,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["playwright.config.ts", "api", "ui", "support"]
+  "include": ["playwright.config.ts", "api", "ui", "docs", "support"]
 }

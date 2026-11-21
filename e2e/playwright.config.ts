@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 import { env } from "./support/env";
 
-// Runs against a stack that is already up (`just test-api` / `just test-e2e` start it).
+// Runs against a stack that is already up (`just test-api` / `just test-e2e` / `just test-docs` start it).
 export default defineConfig({
   forbidOnly: env.ci,
   retries: env.ci ? 1 : 0,
@@ -17,6 +17,11 @@ export default defineConfig({
       name: "ui",
       testDir: "./ui",
       use: { ...devices["Desktop Chrome"], locale: "en-US" },
+    },
+    {
+      name: "docs",
+      testDir: "./docs",
+      use: { ...devices["Desktop Chrome"], baseURL: env.docsBaseUrl },
     },
   ],
 });

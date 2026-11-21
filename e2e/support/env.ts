@@ -26,6 +26,10 @@ export const env = {
   baseUrl:
     process.env.BASE_URL ??
     `http://127.0.0.1:${process.env.SUBTRACK_PORT ?? "8080"}`,
+  /** The dev profile publishes the API docs on SUBTRACK_DOCS_PORT (default 8081); DOCS_BASE_URL overrides it. */
+  docsBaseUrl:
+    process.env.DOCS_BASE_URL ??
+    `http://127.0.0.1:${process.env.SUBTRACK_DOCS_PORT ?? "8081"}`,
   /** Set by `just test-api <profile>` / `just test-e2e-profile <profile>`; unset accepts either. */
   expectedBackend: expectedBackend(process.env.EXPECTED_BACKEND),
   ci: process.env.CI === "true",
