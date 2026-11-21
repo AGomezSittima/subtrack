@@ -38,7 +38,7 @@ Adding or changing a business rule starts here: add or change its cases first, t
 ```
 
 - `id` is stable kebab-case, unique within its file. Test names in both backends include it, so never rename one; add a new case instead. Ids starting with `srs-` reproduce a table row or example from the SRS. The other cases are extra edge cases.
-- `rules` at the top lists the rules the file covers. Each case lists the rules it checks, and every rule in the file appears in at least one case.
+- `rules` at the top lists the rules the file covers. Each case lists the rules it checks, and every rule in the file appears in at least one case. Rule ids appear only in `rules`, never in a `description`.
 - Each file has a JSON Schema in `schema/` (shared definitions in `schema/common.schema.json`). `just lint` validates every file against its schema and checks unique ids and rule coverage (`scripts/validate-cases.ts`).
 
 ## How to compute the expected values

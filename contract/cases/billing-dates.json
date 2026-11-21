@@ -1,12 +1,12 @@
 {
   "$schema": "./schema/billing-dates.schema.json",
-  "description": "BR-1, BR-2: the n-th billing date is anchor + n × interval, computed from the anchor (never from the previous date) and clamped to the last day of a shorter month.",
+  "description": "The n-th billing date is anchor + n × interval, computed from the anchor (never from the previous date) and clamped to the last day of a shorter month.",
   "rules": ["BR-1", "BR-2"],
   "cases": [
     {
       "id": "srs-monthly-from-31st",
       "rules": ["BR-1", "BR-2"],
-      "description": "SRS BR-2 table: monthly from the 31st clamps in short months and returns to the 31st.",
+      "description": "SRS table: monthly from the 31st clamps in short months and returns to the 31st.",
       "input": {
         "anchor": "2026-01-31",
         "interval": {
@@ -22,7 +22,7 @@
     {
       "id": "srs-quarterly-from-31st",
       "rules": ["BR-1", "BR-2"],
-      "description": "SRS BR-2 table: every 3 months from the 31st.",
+      "description": "SRS table: every 3 months from the 31st.",
       "input": {
         "anchor": "2026-01-31",
         "interval": {
@@ -38,7 +38,7 @@
     {
       "id": "srs-yearly-from-leap-day",
       "rules": ["BR-1", "BR-2"],
-      "description": "SRS BR-2 table, as consecutive dates: yearly from 29 February clamps to the 28th and returns to the 29th in the next leap year.",
+      "description": "SRS table, as consecutive dates: yearly from 29 February clamps to the 28th and returns to the 29th in the next leap year.",
       "input": {
         "anchor": "2024-02-29",
         "interval": {
@@ -54,7 +54,7 @@
     {
       "id": "srs-weekly",
       "rules": ["BR-1"],
-      "description": "SRS BR-1 table: weekly.",
+      "description": "SRS table: weekly.",
       "input": {
         "anchor": "2026-11-10",
         "interval": {
@@ -70,7 +70,7 @@
     {
       "id": "srs-every-14-days",
       "rules": ["BR-1"],
-      "description": "SRS BR-1 table: every 14 days.",
+      "description": "SRS table: every 14 days.",
       "input": {
         "anchor": "2026-11-10",
         "interval": {

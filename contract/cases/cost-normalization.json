@@ -1,12 +1,12 @@
 {
   "$schema": "./schema/cost-normalization.schema.json",
-  "description": "BR-4, BR-5, BR-22: monthly equivalent = price ÷ interval in months (1 year = 12 months, a week = 12/52 of a month, a day = 12/365 of a month); yearly = exact monthly × 12. Both are computed exactly and rounded once, half-up, to the cent.",
+  "description": "Monthly equivalent = price ÷ interval in months (1 year = 12 months, a week = 12/52 of a month, a day = 12/365 of a month); yearly = exact monthly × 12. Both are computed exactly and rounded once, half-up, to the cent.",
   "rules": ["BR-4", "BR-5", "BR-22"],
   "cases": [
     {
       "id": "srs-monthly",
       "rules": ["BR-4", "BR-5", "BR-22"],
-      "description": "SRS BR-4 table: 11.99 € monthly.",
+      "description": "SRS table: 11.99 € monthly.",
       "input": {
         "price_cents": 1199,
         "interval": {
@@ -22,7 +22,7 @@
     {
       "id": "srs-yearly",
       "rules": ["BR-4", "BR-5", "BR-22"],
-      "description": "SRS BR-4 table: 49.99 € yearly is 4.1658… € a month. The yearly equivalent is the exact monthly × 12 = 49.99 €, not the rounded 4.17 € × 12 = 50.04 € (BR-22).",
+      "description": "SRS table: 49.99 € yearly is 4.1658… € a month. The yearly equivalent is the exact monthly × 12 = 49.99 €, not the rounded 4.17 € × 12 = 50.04 €.",
       "input": {
         "price_cents": 4999,
         "interval": {
@@ -38,7 +38,7 @@
     {
       "id": "srs-quarterly",
       "rules": ["BR-4", "BR-5", "BR-22"],
-      "description": "SRS BR-4 table: 14.99 € every 3 months is 4.9966… € a month; yearly 59.96 €, not 5.00 € × 12.",
+      "description": "SRS table: 14.99 € every 3 months is 4.9966… € a month; yearly 59.96 €, not 5.00 € × 12.",
       "input": {
         "price_cents": 1499,
         "interval": {
@@ -54,7 +54,7 @@
     {
       "id": "srs-weekly",
       "rules": ["BR-4", "BR-5", "BR-22"],
-      "description": "SRS BR-4 table: 2.99 € weekly charges 52/12 times a month: 12.9566… €; yearly 52 × 2.99 €.",
+      "description": "SRS table: 2.99 € weekly charges 52/12 times a month: 12.9566… €; yearly 52 × 2.99 €.",
       "input": {
         "price_cents": 299,
         "interval": {

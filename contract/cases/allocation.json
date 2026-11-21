@@ -1,12 +1,12 @@
 {
   "$schema": "./schema/allocation.schema.json",
-  "description": "BR-26: monthly equivalents allocated to parts that add up exactly to the shown total. The total is the exact sum rounded once, half-up (BR-22). Each part is rounded down, then the leftover cents go one by one to the parts with the largest remainders; equal remainders go in input order.",
+  "description": "Monthly equivalents allocated to parts that add up exactly to the shown total. The total is the exact sum rounded once, half-up. Each part is rounded down, then the leftover cents go one by one to the parts with the largest remainders; equal remainders go in input order.",
   "rules": ["BR-4", "BR-22", "BR-26"],
   "cases": [
     {
       "id": "srs-three-weekly-plans",
       "rules": ["BR-4", "BR-22", "BR-26"],
-      "description": "SRS BR-26 example: three weekly plans at 2.99 € are 12.9566… € each. The total is 38.87 €; the parts are 12.96 €, 12.96 € and 12.95 € (equal remainders: earlier parts get the leftover cents first).",
+      "description": "SRS example: three weekly plans at 2.99 € are 12.9566… € each. The total is 38.87 €; the parts are 12.96 €, 12.96 € and 12.95 € (equal remainders: earlier parts get the leftover cents first).",
       "input": {
         "items": [
           {
