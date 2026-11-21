@@ -1,18 +1,7 @@
-/**
- * Validates every shared business-rule case file in `cases/` (run by `just lint`).
- *
- * - Each `cases/<name>.json` must have a `cases/schema/<name>.schema.json` and match it.
- * - Case ids are unique within a file.
- * - Every rule a file declares in `rules` is covered by at least one of its cases.
- */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
-// ajv-formats is CommonJS without a named export; under nodenext its function is `.default`.
-import ajvFormats from "ajv-formats";
-
-const addFormats = ajvFormats.default;
 
 interface CaseFile {
   rules: string[];
@@ -26,8 +15,22 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-const ajv = new Ajv2020({ allErrors: true, strict: true });
-addFormats(ajv, ["date"]);
+function isIsoDate(value: string): boolean {
+  try {
+    return (
+      Temporal.PlainDate.from(value, { overflow: "reject" }).toString() ===
+      value
+    );
+  } catch {
+    return false;
+  }
+}
+
+const ajv = new Ajv2020({
+  allErrors: true,
+  strict: true,
+  formats: { date: isIsoDate },
+});
 
 const schemaFiles = readdirSync(schemaDir).filter((file) =>
   file.endsWith(".schema.json"),
@@ -47,14 +50,9 @@ for (const file of caseFiles) {
     problems.push(`${file}: no schema at cases/schema/${schemaName}`);
     continue;
   }
-  const validate = ajv.getSchema<CaseFile>(schemaName);
-  if (validate === undefined) {
-    problems.push(`${file}: schema ${schemaName} did not compile`);
-    continue;
-  }
-
-  const json = readJson(join(casesDir, file));
-  if (validate(json) !== true) {
+  const validate = ajv.compile<CaseFile>({ $ref: schemaName });
+  const data = readJson(join(casesDir, file));
+  if (!validate(data)) {
     for (const error of validate.errors ?? []) {
       problems.push(
         `${file}${error.instancePath}: ${error.message ?? "is invalid"}`,
@@ -62,9 +60,6 @@ for (const file of caseFiles) {
     }
     continue;
   }
-  // getSchema returns a sync-or-async validator union, which drops the type predicate; the
-  // schema has just accepted the file, so it has the CaseFile shape.
-  const data = json as CaseFile;
 
   const seen = new Set<string>();
   for (const { id } of data.cases) {
