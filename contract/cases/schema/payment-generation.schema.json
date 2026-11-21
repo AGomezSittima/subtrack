@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "payment-generation.schema.json",
+  "title": "Payment planning: the payments of one subscription after a scheduler run or a status change",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "description", "rules", "cases"],
+  "properties": {
+    "$schema": {
+      "const": "./schema/payment-generation.schema.json"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rules": {
+      "description": "The rules this file covers. Each one appears in at least one case.",
+      "const": [
+        "BR-1",
+        "BR-6",
+        "BR-7",
+        "BR-8",
+        "BR-9",
+        "BR-10",
+        "BR-11",
+        "BR-12",
+        "BR-20",
+        "BR-21",
+        "BR-27"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rules", "description", "input", "expected"],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/caseId"
+          },
+          "rules": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/ruleId"
+                },
+                {
+                  "enum": [
+                    "BR-1",
+                    "BR-6",
+                    "BR-7",
+                    "BR-8",
+                    "BR-9",
+                    "BR-10",
+                    "BR-11",
+                    "BR-12",
+                    "BR-20",
+                    "BR-21",
+                    "BR-27"
+                  ]
+                }
+              ]
+            }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "today",
+              "settings",
+              "backfill",
+              "subscription",
+              "price_history",
+              "existing_payments"
+            ],
+            "properties": {
+              "today": {
+                "$ref": "common.schema.json#/$defs/date"
+              },
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["payment_horizon_days"],
+                "properties": {
+                  "payment_horizon_days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 366
+                  }
+                }
+              },
+              "backfill": {
+                "description": "True only when called while creating the subscription with a backfill.",
+                "type": "boolean"
+              },
+              "subscription": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "anchor_date",
+                  "interval",
+                  "status",
+                  "created_on",
+                  "auto_confirm"
+                ],
+                "properties": {
+                  "anchor_date": {
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  "interval": {
+                    "$ref": "common.schema.json#/$defs/interval"
+                  },
+                  "status": {
+                    "enum": ["trial", "active", "paused", "cancelled"]
+                  },
+                  "created_on": {
+                    "description": "Date of created_at in Europe/Madrid.",
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  "auto_confirm": {
+                    "type": "boolean"
+                  },
+                  "trial_end_date": {
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  "paused_at": {
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  "resumed_on": {
+                    "description": "Last resume or reactivation date.",
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  "ends_on": {
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  "archived_on": {
+                    "description": "Date of archived_at in Europe/Madrid; present only while archived.",
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  "unarchived_on": {
+                    "$ref": "common.schema.json#/$defs/date"
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "required": ["status"],
+                      "properties": {
+                        "status": {
+                          "const": "trial"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": ["trial_end_date"],
+                      "properties": {
+                        "trial_end_date": true
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": ["status"],
+                      "properties": {
+                        "status": {
+                          "const": "paused"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": ["paused_at"],
+                      "properties": {
+                        "paused_at": true
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": ["status"],
+                      "properties": {
+                        "status": {
+                          "const": "cancelled"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": ["ends_on"],
+                      "properties": {
+                        "ends_on": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "price_history": {
+                "description": "The first entry is in force on the anchor date.",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["price_cents", "effective_from"],
+                  "properties": {
+                    "price_cents": {
+                      "$ref": "common.schema.json#/$defs/cents"
+                    },
+                    "effective_from": {
+                      "$ref": "common.schema.json#/$defs/date"
+                    }
+                  }
+                }
+              },
+              "existing_payments": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/existingPayment"
+                }
+              }
+            }
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["payments", "subscription_status"],
+            "properties": {
+              "payments": {
+                "description": "Every payment after planning, by due date. Existing ones keep their ref; new ones have none.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/plannedPayment"
+                }
+              },
+              "subscription_status": {
+                "enum": ["trial", "active", "paused", "cancelled"]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "existingPayment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "due_date", "expected_cents", "status", "source"],
+      "properties": {
+        "ref": {
+          "description": "Names an existing payment, so the expected result shows what happened to it.",
+          "type": "string",
+          "pattern": "^p[0-9]+$"
+        },
+        "due_date": {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        "expected_cents": {
+          "$ref": "common.schema.json#/$defs/cents"
+        },
+        "status": {
+          "enum": ["expected", "paid", "skipped", "failed"]
+        },
+        "source": {
+          "enum": ["scheduled", "backfill", "manual"]
+        },
+        "paid_cents": {
+          "$ref": "common.schema.json#/$defs/cents"
+        },
+        "paid_date": {
+          "$ref": "common.schema.json#/$defs/date"
+        }
+      },
+      "if": {
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "const": "paid"
+          }
+        }
+      },
+      "then": {
+        "required": ["paid_cents", "paid_date"],
+        "properties": {
+          "paid_cents": true,
+          "paid_date": true
+        }
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": ["paid_cents"],
+              "properties": {
+                "paid_cents": true
+              }
+            },
+            {
+              "required": ["paid_date"],
+              "properties": {
+                "paid_date": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    "plannedPayment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["due_date", "expected_cents", "status", "source"],
+      "properties": {
+        "ref": {
+          "description": "Names an existing payment, so the expected result shows what happened to it.",
+          "type": "string",
+          "pattern": "^p[0-9]+$"
+        },
+        "due_date": {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        "expected_cents": {
+          "$ref": "common.schema.json#/$defs/cents"
+        },
+        "status": {
+          "enum": ["expected", "paid", "skipped", "failed"]
+        },
+        "source": {
+          "enum": ["scheduled", "backfill", "manual"]
+        },
+        "paid_cents": {
+          "$ref": "common.schema.json#/$defs/cents"
+        },
+        "paid_date": {
+          "$ref": "common.schema.json#/$defs/date"
+        }
+      },
+      "if": {
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "const": "paid"
+          }
+        }
+      },
+      "then": {
+        "required": ["paid_cents", "paid_date"],
+        "properties": {
+          "paid_cents": true,
+          "paid_date": true
+        }
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": ["paid_cents"],
+              "properties": {
+                "paid_cents": true
+              }
+            },
+            {
+              "required": ["paid_date"],
+              "properties": {
+                "paid_date": true
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

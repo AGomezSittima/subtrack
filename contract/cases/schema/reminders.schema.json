@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reminders.schema.json",
+  "title": "Reminder planning: the notifications a scheduler run creates",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "description", "rules", "cases"],
+  "properties": {
+    "$schema": {
+      "const": "./schema/reminders.schema.json"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rules": {
+      "description": "The rules this file covers. Each one appears in at least one case.",
+      "const": [
+        "BR-13",
+        "BR-14",
+        "BR-15",
+        "BR-16",
+        "BR-17",
+        "BR-19",
+        "BR-20",
+        "BR-23",
+        "BR-24",
+        "BR-27"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rules", "description", "input", "expected"],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/caseId"
+          },
+          "rules": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/ruleId"
+                },
+                {
+                  "enum": [
+                    "BR-13",
+                    "BR-14",
+                    "BR-15",
+                    "BR-16",
+                    "BR-17",
+                    "BR-19",
+                    "BR-20",
+                    "BR-23",
+                    "BR-24",
+                    "BR-27"
+                  ]
+                }
+              ]
+            }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "last_run_date",
+              "today",
+              "settings",
+              "subscriptions",
+              "payments",
+              "existing_dedupe_keys"
+            ],
+            "properties": {
+              "last_run_date": {
+                "description": "Date of last_scheduler_run in Europe/Madrid; null before the first run.",
+                "anyOf": [
+                  {
+                    "$ref": "common.schema.json#/$defs/date"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "today": {
+                "$ref": "common.schema.json#/$defs/date"
+              },
+              "settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "default_reminder_days",
+                  "trial_reminder_days",
+                  "yearly_reminder_days",
+                  "ending_reminder_days"
+                ],
+                "properties": {
+                  "default_reminder_days": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 365
+                  },
+                  "trial_reminder_days": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 365
+                  },
+                  "yearly_reminder_days": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 365
+                  },
+                  "ending_reminder_days": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 365
+                  }
+                }
+              },
+              "subscriptions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "name",
+                    "interval",
+                    "status",
+                    "archived",
+                    "reminder_days"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "interval": {
+                      "$ref": "common.schema.json#/$defs/interval"
+                    },
+                    "status": {
+                      "enum": ["trial", "active", "paused", "cancelled"]
+                    },
+                    "archived": {
+                      "type": "boolean"
+                    },
+                    "reminder_days": {
+                      "description": "Override; null = the default, -1 = off.",
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -1,
+                          "maximum": 365
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "trial_end_date": {
+                      "$ref": "common.schema.json#/$defs/date"
+                    },
+                    "ends_on": {
+                      "$ref": "common.schema.json#/$defs/date"
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "required": ["status"],
+                        "properties": {
+                          "status": {
+                            "const": "trial"
+                          }
+                        }
+                      },
+                      "then": {
+                        "required": ["trial_end_date"],
+                        "properties": {
+                          "trial_end_date": true
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "required": ["status"],
+                        "properties": {
+                          "status": {
+                            "const": "cancelled"
+                          }
+                        }
+                      },
+                      "then": {
+                        "required": ["ends_on"],
+                        "properties": {
+                          "ends_on": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "payments": {
+                "description": "Payments after payment planning (auto-confirm already applied).",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "subscription_id",
+                    "due_date",
+                    "expected_cents",
+                    "status"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "subscription_id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "due_date": {
+                      "$ref": "common.schema.json#/$defs/date"
+                    },
+                    "expected_cents": {
+                      "$ref": "common.schema.json#/$defs/cents"
+                    },
+                    "status": {
+                      "enum": ["expected", "paid", "skipped", "failed"]
+                    }
+                  }
+                }
+              },
+              "existing_dedupe_keys": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^(renewal|yearly_renewal|trial_ending|ending|overdue):[1-9][0-9]*:[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                }
+              }
+            }
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["notifications"],
+            "properties": {
+              "notifications": {
+                "description": "New notifications, by trigger date, then subscription id, then type.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "severity",
+                    "trigger_date",
+                    "dedupe_key",
+                    "subscription_id",
+                    "payment_id",
+                    "params"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "renewal",
+                        "yearly_renewal",
+                        "trial_ending",
+                        "ending",
+                        "overdue"
+                      ]
+                    },
+                    "severity": {
+                      "enum": ["info", "warning", "critical"]
+                    },
+                    "trigger_date": {
+                      "$ref": "common.schema.json#/$defs/date"
+                    },
+                    "dedupe_key": {
+                      "type": "string",
+                      "pattern": "^(renewal|yearly_renewal|trial_ending|ending|overdue):[1-9][0-9]*:[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                    },
+                    "subscription_id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "payment_id": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["name", "date"],
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "date": {
+                          "description": "The event date: due date, trial end date or ends_on.",
+                          "$ref": "common.schema.json#/$defs/date"
+                        },
+                        "amount_cents": {
+                          "$ref": "common.schema.json#/$defs/cents"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
