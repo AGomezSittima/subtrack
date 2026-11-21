@@ -1,0 +1,10 @@
+-- V2: initial catalogue of services (FR-2; docs/srs.md, Initial catalogue).
+--
+-- Intentionally empty. Which services ship, and their plans and prices, is still an open question
+-- in the SRS ("Catalogue: plans and prices for each initial service"). The real entries will come
+-- in a later migration, which should insert explicit ids so that exported subscriptions keep
+-- pointing at the same catalog_service rows. default_plans uses the subscription interval shape:
+--   [{"plan": "Individual", "price_cents": 1199, "interval_count": 1, "interval_unit": "month"}]
+--
+-- The file exists now so that its version number is reserved for the catalogue seed (docs/sdd.md,
+-- Migrations and ownership). Flyway accepts a migration with no statements.
