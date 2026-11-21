@@ -8,7 +8,7 @@ The API contract shared by both backends and the frontend.
 | `generated/openapi.d.ts`    | TypeScript types generated from it. Don't edit by hand; run `just gen`  |
 | `cases/`                    | Shared business-rule test cases loaded by both backend test suites      |
 | `redocly.yaml`              | Lint rules for `openapi.yaml` (`recommended-strict`: any finding fails) |
-| `.redocly.lint-ignore.yaml` | Findings ignored on purpose, each with its reason                       |
+| `.redocly.lint-ignore.yaml` | Findings ignored on purpose (reasons in `docs/adr/0005`)                |
 | `redocly.gen.yaml`          | Minimal structural checks used by `just gen`                            |
 | `scripts/`                  | `validate-cases.ts`: checks `cases/` against `cases/schema/`            |
 

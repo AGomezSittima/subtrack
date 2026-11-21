@@ -1,5 +1,3 @@
-# Findings ignored on purpose; every other operation must still pass operation-4xx-response.
-# /health and /auth/status are public and take no parameters or body, so no 4XX can happen.
 openapi.yaml:
   operation-4xx-response:
     - "#/paths/~1health/get/responses"

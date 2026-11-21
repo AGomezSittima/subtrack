@@ -355,7 +355,7 @@ Each `errors[]` entry is `{location, pointer, code, params?}`: `location` is `bo
 
 ### Linting
 
-`just lint` runs Redocly CLI on the contract with `recommended-strict` (`contract/redocly.yaml`), so any finding fails. Deliberate exceptions live in `contract/.redocly.lint-ignore.yaml`, each with its reason. `just gen` validates with a minimal structural config (`contract/redocly.gen.yaml`), because openapi-typescript doesn't read the ignore file.
+`just lint` runs Redocly CLI on the contract with `recommended-strict` (`contract/redocly.yaml`), so any finding fails. Deliberate exceptions live in `contract/.redocly.lint-ignore.yaml`, and `just gen` validates with a minimal structural config (`contract/redocly.gen.yaml`); the reasons are in ADR 0005.
 
 ### API evolution
 

@@ -1,9 +1,6 @@
-# Redocly CLI lint configuration for openapi.yaml (run by `just lint`).
-# recommended-strict turns every recommended warning into an error, so any finding fails lint.
 extends:
   - recommended-strict
 
 rules:
-  # Subtrack is a private, single-user app with no published license.
   info-license: off
   info-license-strict: off
