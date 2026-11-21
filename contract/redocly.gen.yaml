@@ -1,0 +1,5 @@
+# Redocly configuration used only by openapi-typescript (`just gen`), which validates the contract
+# before generating types but doesn't read .redocly.lint-ignore.yaml. Generation keeps the
+# structural checks; the full strict rule set runs in `just lint` (redocly.yaml).
+extends:
+  - minimal
