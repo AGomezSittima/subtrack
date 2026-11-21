@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common.schema.json",
+  "title": "Definitions shared by every business-rule case file",
+  "$defs": {
+    "date": {
+      "description": "Calendar date, YYYY-MM-DD (docs/sdd.md, Date and timestamp storage).",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "format": "date"
+    },
+    "cents": {
+      "description": "Amount in integer euro cents.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "interval": {
+      "description": "Billing interval: every `count` `unit`s.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "unit"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 1 },
+        "unit": { "enum": ["day", "week", "month", "year"] }
+      }
+    },
+    "caseId": {
+      "description": "Stable kebab-case id, unique within its file. Never renamed once committed.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "ruleId": {
+      "description": "A business rule id from docs/srs.md.",
+      "type": "string",
+      "pattern": "^BR-[1-9][0-9]*$"
+    }
+  }
+}
