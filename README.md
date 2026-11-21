@@ -28,20 +28,22 @@ just e2e-setup        # Playwright Chromium for the UI suite
 
 ## Commands
 
-| Command                              | What it does                                                        |
-| ------------------------------------ | ------------------------------------------------------------------- |
-| `just up fastapi` / `just up spring` | Start the stack with one backend at http://127.0.0.1:8080           |
-| `just down`                          | Stop the stack; data stays on the `subs-data` volume                |
-| `just lint` / `just fmt`             | Lint and format every part                                          |
-| `just test`                          | Static checks, unit tests, then the API suite against both backends |
-| `just test-e2e`                      | Browser suite against both backends                                 |
-| `just gen`                           | Regenerate types from `contract/openapi.yaml`                       |
+| Command                                | What it does                                                        |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| `just up fastapi` / `just up spring`   | Start the stack with one backend at http://127.0.0.1:8080           |
+| `just dev fastapi` / `just dev spring` | The same plus the API docs (Swagger UI) at http://127.0.0.1:8081    |
+| `just down`                            | Stop the stack; data stays on the `subs-data` volume                |
+| `just lint` / `just fmt`               | Lint and format every part                                          |
+| `just test`                            | Static checks, unit tests, then the API suite against both backends |
+| `just test-e2e`                        | Browser suite against both backends                                 |
+| `just test-docs`                       | Check the API docs: every operation listed, `/api` proxied          |
+| `just gen`                             | Regenerate types from `contract/openapi.yaml`                       |
 
-`just test` and `just test-e2e` start their own stack under the Compose project `subtrack-test`, which has its own volume, and remove it afterwards. Stop your own stack first (`just down`), because both use the same port.
+`just test`, `just test-e2e` and `just test-docs` start their own stack under the Compose project `subtrack-test`, which has its own volume, and remove it afterwards. Stop your own stack first (`just down`), because both use the same ports.
 
 ### Port
 
-The app is published on `127.0.0.1:8080`. To use another port, set `SUBTRACK_PORT`, either in the shell or in a `.env` file at the repository root (copy `.env.example`). Docker Compose, the `just` recipes, the Playwright suites and the Vite dev proxy all read it.
+The app is published on `127.0.0.1:8080`. To use another port, set `SUBTRACK_PORT`, either in the shell or in a `.env` file at the repository root (copy `.env.example`). Docker Compose, the `just` recipes, the Playwright suites and the Vite dev proxy all read it. The API docs of `just dev` use `SUBTRACK_DOCS_PORT` (default 8081) the same way.
 
 ## Layout
 
@@ -52,7 +54,8 @@ The app is published on `127.0.0.1:8080`. To use another port, set `SUBTRACK_POR
 | `frontend/`          | React + Vite app, served by nginx                                                                    |
 | `backend-fastapi/`   | Python 3.14 / FastAPI backend                                                                        |
 | `backend-spring/`    | Java 25 / Spring Boot backend                                                                        |
-| `e2e/`               | Playwright: `api/` (shared API suite), `ui/` (browser flows), `support/`                             |
+| `api-docs/`          | Swagger UI image for the local API docs (`dev` profile)                                              |
+| `e2e/`               | Playwright: `api/` (shared API suite), `ui/` (browser flows), `docs/` (API docs check), `support/`   |
 | `docs/`              | SRS, SDD, standards, ADRs                                                                            |
 | `.github/workflows/` | `ci.yml` (every push), `e2e.yml` (main, staging)                                                     |
 

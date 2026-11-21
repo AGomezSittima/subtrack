@@ -58,7 +58,7 @@ Dependencies are updated manually while implementing; no update bot.
 
 ## Architecture and deployment
 
-Only the web container publishes a port, on 127.0.0.1. SQLite is a file, not a server, so there is no database container and nothing to expose: the file lives on a named volume mounted only into the migration job and the active backend.
+Only the web container publishes a port, on 127.0.0.1 (plus the API docs in the local-only `dev` profile, below). SQLite is a file, not a server, so there is no database container and nothing to expose: the file lives on a named volume mounted only into the migration job and the active backend.
 
 &#91;embedded content: Compose stack · 1 published port, 1 volume\]
 
@@ -72,8 +72,19 @@ The browser reaches only nginx; the active backend and the migration job share t
 | migrate | fastapi, spring | Flyway one-shot job applying `db/migrations/*.sql`, then exits | none |
 | api-fastapi | fastapi | FastAPI backend, network alias `api` | none |
 | api-spring | spring | Spring Boot backend, network alias `api` | none |
+| docs | dev | nginx serving Swagger UI for `contract/openapi.yaml`, proxies `/api` to `api` | 127.0.0.1:8081 (`SUBTRACK_DOCS_PORT`) |
 
 Both backends answer on the alias `api`, so the nginx config never changes. nginx resolves `api` at request time (`resolver 127.0.0.11` + a variable in `proxy_pass`); otherwise it refuses to start while the backend is still booting.
+
+### API docs (dev profile)
+
+Interactive API docs for local development only; `just up` never starts them. `just dev fastapi` (or `spring`) starts the stack with that backend plus the `docs` service, whose only profile is `dev`.
+
+- Image `api-docs/`: nginx (same pinned tag as `web`) with Swagger UI from `swagger-ui-dist`, pinned to one version and verified by SHA-256 at build time. Its assets are part of the image, so the page loads nothing from a CDN.
+- The spec is not copied into the image: `contract/` is mounted read-only and nginx serves only `/openapi.yaml` from it, without caching, so a reload shows the current contract.
+- `/api` is proxied to the `api` alias exactly like in `web`, so "Try it out" is same-origin with the spec's server `/api/v1`: no CORS, and the session cookie works as in the app.
+- Published on `127.0.0.1:${SUBTRACK_DOCS_PORT:-8081}` (`.env.example`). The `web` service and its nginx config are unchanged.
+- Checked by the Playwright project `docs` (`e2e/docs/`): the page loads and lists every `operationId` in the contract, and `/api/v1/health` on the docs origin answers from the expected backend. It runs with `just test-docs [profile]` against a test stack started with the `dev` profile, and is not part of `just test` or CI.
 
 ### docker-compose.yml (sketch)
 
@@ -120,16 +131,23 @@ services:
     profiles: [fastapi, spring]
     ports: ["127.0.0.1:${SUBTRACK_PORT:-8080}:80"]
 
+  docs:
+    build: ./api-docs
+    profiles: [dev]
+    volumes: ["./contract:/contract:ro"]
+    ports: ["127.0.0.1:${SUBTRACK_DOCS_PORT:-8081}:80"]
+
 volumes:
   subs-data:
 ```
 
-Both backends listen on port 8000 inside the network and serve everything under `/api/v1`. The host port is optional configuration: `SUBTRACK_PORT` (default 8080) from the shell or a root `.env` (`.env.example` documents it). The test overlay `docker-compose.test.yml` only sets `SUBTRACK_TEST_MODE=true` on both backends.
+Both backends listen on port 8000 inside the network and serve everything under `/api/v1`. The host ports are optional configuration: `SUBTRACK_PORT` (default 8080) and `SUBTRACK_DOCS_PORT` (default 8081) from the shell or a root `.env` (`.env.example` documents them). The test overlay `docker-compose.test.yml` only sets `SUBTRACK_TEST_MODE=true` on both backends.
 
 ### Everyday use
 
 - Start: `docker compose --profile fastapi up -d` (or `--profile spring`)
-- Stop: `docker compose --profile fastapi down`; data stays on the volume
+- Start with the API docs: `just dev fastapi` (adds `--profile dev`)
+- Stop: `docker compose --profile fastapi down` (`just down` stops every profile, `dev` included); data stays on the volume
 - Switch backend: stop one profile, start the other; both read the same database
 - Backup: the export endpoint, or copy `subs.db` out of the volume while stopped
 
@@ -532,7 +550,8 @@ subtrack/
 ├── frontend/                React + Vite app
 ├── backend-fastapi/         same module names as backend-spring
 ├── backend-spring/          api, service, billing, repository, persistence, scheduler, security, clock, config, cli
-├── e2e/                     Playwright: api/ (shared API suite) and ui/ (browser flows)
+├── api-docs/                Swagger UI image for the dev profile
+├── e2e/                     Playwright: api/ (shared API suite), ui/ (browser flows), docs/ (API docs check)
 ├── docs/                    srs.md, sdd.md, standards.md, adr/
 ├── docker-compose.yml       normal stack, profiles fastapi and spring
 ├── docker-compose.test.yml  test overlay: enables test mode
