@@ -3,6 +3,7 @@ import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
   java
+  checkstyle
   alias(libs.plugins.spring.boot)
   alias(libs.plugins.spotless)
 }
@@ -59,6 +60,11 @@ tasks.test {
   useJUnitPlatform()
   // sqlite-jdbc loads its native library through System::load.
   jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+checkstyle {
+  toolVersion = libs.versions.checkstyle.get()
+  maxWarnings = 0
 }
 
 val googleJavaFormatVersion: String =
