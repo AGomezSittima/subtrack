@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "allocation.schema.json",
+  "title": "BR-26: parts that add up exactly to a shown total",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "description", "rules", "cases"],
+  "properties": {
+    "$schema": {
+      "const": "./schema/allocation.schema.json"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rules": {
+      "description": "The rules this file covers. Each one appears in at least one case.",
+      "const": ["BR-4", "BR-22", "BR-26"]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rules", "description", "input", "expected"],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/caseId"
+          },
+          "rules": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/ruleId"
+                },
+                {
+                  "enum": ["BR-4", "BR-22", "BR-26"]
+                }
+              ]
+            }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "description": "Subscriptions in display order. Items with the same part label (e.g. a category) are summed exactly into one part.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["part", "price_cents", "interval"],
+                  "properties": {
+                    "part": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "price_cents": {
+                      "$ref": "common.schema.json#/$defs/cents"
+                    },
+                    "interval": {
+                      "$ref": "common.schema.json#/$defs/interval"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["total_cents", "parts"],
+            "properties": {
+              "total_cents": {
+                "$ref": "common.schema.json#/$defs/cents",
+                "description": "Sum of the exact monthly equivalents, rounded once, half-up."
+              },
+              "parts": {
+                "description": "One entry per part label, in order of first appearance. The cents add up to total_cents.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["part", "cents"],
+                  "properties": {
+                    "part": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "cents": {
+                      "$ref": "common.schema.json#/$defs/cents"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
