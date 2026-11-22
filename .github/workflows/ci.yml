@@ -1,5 +1,5 @@
 # Every push and pull request: static checks and unit tests for the parts whose paths changed
-# (all of them on main), then the shared API suite against both backends.
+# (all of them on main), then the shared API suite and Schemathesis against both backends.
 # A pull request from a branch of this repository is already covered by the push run of the same
 # commit, so its pull_request run is skipped; pull requests from forks get a full run.
 name: ci
@@ -66,6 +66,7 @@ jobs:
             spring:
               - *shared
               - "backend-spring/**"
+              - "db/**"
               - "contract/cases/**"
 
   js:
