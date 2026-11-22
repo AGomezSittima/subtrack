@@ -1,5 +1,3 @@
-"""Typed application settings, read from environment variables."""
-
 from importlib.metadata import version
 from pathlib import Path
 
@@ -8,8 +6,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Every setting the backend reads. Nothing else reads the environment."""
-
     model_config = SettingsConfigDict(extra="ignore", frozen=True)
 
     db_path: Path = Field(default=Path("subs.db"), validation_alias="DB_PATH")

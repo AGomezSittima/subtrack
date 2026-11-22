@@ -9,14 +9,9 @@ import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
-/**
- * Serves every {@code @RestController} under {@link #API_PREFIX}, so controllers map only their own
- * paths ({@code @GetMapping("/health")}) and the prefix is defined once.
- */
 @Configuration(proxyBeanMethods = false)
 public class WebConfig implements WebMvcConfigurer {
 
-  /** Base path of the API: {@code servers} in contract/openapi.yaml. */
   public static final String API_PREFIX = "/api/v1";
 
   @Bean

@@ -7,7 +7,6 @@ with-security-parameters = false
 [checks]
 ignored_auth.enabled = false
 
-# The operations both backends implement; each slice adds its own.
 [[operations]]
 exclude-operation-id = ["getHealth", "setClock", "resetData"]
 enabled = false

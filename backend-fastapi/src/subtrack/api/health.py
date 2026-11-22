@@ -1,5 +1,3 @@
-"""GET /health: liveness and backend identity (public endpoint)."""
-
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
@@ -12,8 +10,6 @@ from subtrack.service.health import HealthService
 
 
 class HealthResponse(BaseModel):
-    """Contract schema `Health`."""
-
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     status: Literal["ok"]
@@ -30,7 +26,6 @@ def get_health(
     config: Annotated[Settings, Depends(settings)],
     health: Annotated[HealthService, Depends(health_service)],
 ) -> HealthResponse:
-    """Report that this backend is up and which implementation it is."""
     return HealthResponse(
         status="ok",
         backend="fastapi",

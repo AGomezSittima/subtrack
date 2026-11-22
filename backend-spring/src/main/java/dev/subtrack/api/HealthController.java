@@ -5,7 +5,6 @@ import dev.subtrack.service.HealthService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** GET /health: liveness and backend identity (public endpoint). Prefixed by WebConfig. */
 @RestController
 class HealthController {
 

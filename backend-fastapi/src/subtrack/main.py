@@ -1,5 +1,3 @@
-"""Application factory (`uvicorn --factory subtrack.main:create_app`)."""
-
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -13,7 +11,6 @@ from subtrack.security.middleware import LockMiddleware
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    """Build the app with every router under /api/v1 behind the privacy lock."""
     config = settings or Settings()
     container = build_container(config)
 
@@ -22,7 +19,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         container.engine.dispose()
 
-    # The contract lives in contract/openapi.yaml, so the generated docs are not served.
     app = FastAPI(
         title="Subtrack API",
         openapi_url=None,
