@@ -290,7 +290,7 @@ Both backends write the same ISO text (NFR-9); neither relies on driver defaults
   - Timestamp: `col GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z' AND strftime('%Y-%m-%dT%H:%M:%fZ', col) IS col`
 
   The `GLOB` checks the shape; the round-trip through `date()` / `strftime()` rejects impossible values such as `2026-02-30` or `25:00`. It uses `IS`, not `=`: those functions return NULL for invalid input, and a `CHECK` that evaluates to NULL passes.
-- **Contract**: `Date` has pattern `^[0-9]{4}-[0-9]{2}-[0-9]{2}$` (format `date`), `Timestamp` has `^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$` (format `date-time`), and `Month` (statistics) has `^[0-9]{4}-(0[1-9]|1[0-2])$`.
+- **Contract**: `Date` is `YYYY-MM-DD` (format `date`) and `Timestamp` is `YYYY-MM-DDTHH:MM:SS.mmmZ` (format `date-time`). Their patterns accept exactly what the backends parse: years 0001 to 9999 and seconds 00 to 59, with the calendar check left to `format`. `Month` (statistics) has `^[0-9]{4}-(0[1-9]|1[0-2])$`.
 - **Spring**: JPA `AttributeConverter`s for `LocalDate` and `Instant` (`IsoDateConverter`, `UtcTimestampConverter`, `autoApply`) that read and write these strings. The SQLite JDBC driver's default date storage (epoch milliseconds) is never used.
 - **FastAPI**: `TypeDecorator`s `IsoDate` and `UtcTimestamp`, not SQLAlchemy's `Date` and `DateTime`, so both kinds go through the same strict code.
 - **Parsing** is strict in both (`persistence/isotext.py`, `IsoText`): the shape, then a calendar check (year 0001 or later, seconds 00 to 59). A non-canonical value in the database fails to read instead of being guessed. Timestamps are truncated to milliseconds on write.
