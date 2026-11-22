@@ -964,7 +964,7 @@ paths:
       operationId: resetData
       tags: [admin]
       summary: Reset to a fresh database (test mode only)
-      description: "**Test mode only; 404 otherwise.** Restores a fresh database: empty tables, the seeded catalogue and default settings."
+      description: "**Test mode only; 404 otherwise.** Restores the database to its state right after migrations (no user data, default settings, the seeded catalogue) and unpins the clock."
       responses:
         "204":
           description: The database is fresh.
@@ -1194,7 +1194,7 @@ components:
           description: Developer-facing English explanation of this occurrence. Never displayed.
           type: string
         errors:
-          description: Only with `validation-error`; one entry per failed check.
+          description: "Only with `validation-error`; at least one entry, each accurate. Every constraint failure is listed; for a structural failure (wrong type, unknown property) only the first may be."
           type: array
           minItems: 1
           items:

@@ -705,7 +705,7 @@ export interface paths {
         put?: never;
         /**
          * Reset to a fresh database (test mode only)
-         * @description **Test mode only; 404 otherwise.** Restores a fresh database: empty tables, the seeded catalogue and default settings.
+         * @description **Test mode only; 404 otherwise.** Restores the database to its state right after migrations (no user data, default settings, the seeded catalogue) and unpins the clock.
          */
         post: operations["resetData"];
         delete?: never;
@@ -797,7 +797,7 @@ export interface components {
             status: number;
             /** @description Developer-facing English explanation of this occurrence. Never displayed. */
             detail?: string;
-            /** @description Only with `validation-error`; one entry per failed check. */
+            /** @description Only with `validation-error`; at least one entry, each accurate. Every constraint failure is listed; for a structural failure (wrong type, unknown property) only the first may be. */
             errors?: components["schemas"]["ValidationIssue"][];
             /** @description Only with `too-many-attempts`; when the next attempt is accepted. */
             retry_after?: components["schemas"]["Timestamp"];
