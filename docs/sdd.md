@@ -42,7 +42,7 @@ Chosen on 2026-11-12: latest stable versions that are compatible with each other
 | Java | 25 LTS |  |
 | Spring Boot | 4.1.1 | Hibernate, community SQLite dialect and Flyway versions managed by Spring's BOM where possible |
 | sqlite-jdbc | Latest (xerial) |  |
-| Flyway, nginx, Playwright, Schemathesis images | Latest, pinned by tag | Schemathesis 4.33.4 (4.34.0 was a day old when pinned) |
+| Flyway, nginx, Playwright, Schemathesis images | Latest, pinned by tag | Schemathesis 4.33.4; 4.34.0 was released the day it was pinned |
 
 ### CI
 
