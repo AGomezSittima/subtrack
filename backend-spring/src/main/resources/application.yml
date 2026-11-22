@@ -7,10 +7,6 @@ spring:
     name: subtrack
   main:
     banner-mode: off
-  datasource:
-    # PRAGMAs applied on every connection (docs/sdd.md, Migrations and ownership).
-    url: jdbc:sqlite:${DB_PATH:subs.db}?foreign_keys=on&journal_mode=WAL&busy_timeout=5000
-    driver-class-name: org.sqlite.JDBC
   jpa:
     open-in-view: false
     hibernate:
@@ -21,7 +17,12 @@ spring:
     enabled: false
   jackson:
     property-naming-strategy: SNAKE_CASE
+  web:
+    resources:
+      add-mappings: false
 
 subtrack:
   version: "@version@"
   test-mode: ${SUBTRACK_TEST_MODE:false}
+  db-path: ${DB_PATH:subs.db}
+  template-db-path: ${SUBTRACK_TEMPLATE_DB:}
