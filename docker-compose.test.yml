@@ -1,5 +1,5 @@
-# Test overlay: test mode (settable clock, /admin/clock, /admin/reset) and the template database
-# that /admin/reset restores from.
+# Test overlay: test mode (settable clock, /admin/clock, /admin/reset), the template database that
+# /admin/reset restores from, and the Schemathesis contract checks.
 # Used by `just test-api` and `just test-e2e`, never for everyday use.
 x-test-mode: &test-mode
   SUBTRACK_TEST_MODE: "true"
@@ -18,3 +18,18 @@ services:
 
   api-spring:
     environment: *test-mode
+
+  schemathesis:
+    image: schemathesis/schemathesis:4.33.4
+    profiles: [contract]
+    working_dir: /tmp
+    volumes:
+      - ./contract:/contract:ro
+      - ./e2e/schemathesis:/config:ro
+    command:
+      [
+        "--config-file",
+        "/config/schemathesis.toml",
+        "run",
+        "/contract/openapi.yaml",
+      ]
