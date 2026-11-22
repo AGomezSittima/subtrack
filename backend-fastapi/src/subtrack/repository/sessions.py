@@ -1,5 +1,3 @@
-"""Privacy-lock sessions, looked up by the SHA-256 of their token."""
-
 from datetime import datetime
 from typing import Protocol
 

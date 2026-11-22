@@ -1,5 +1,3 @@
-"""Reads of the key-value `setting` table."""
-
 from datetime import datetime
 from typing import Protocol
 

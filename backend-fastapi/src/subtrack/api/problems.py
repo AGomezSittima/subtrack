@@ -1,5 +1,3 @@
-"""RFC 9457 problem types, defined once, and the exception that carries one."""
-
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
@@ -75,8 +73,6 @@ class ValidationIssue:
 
 @dataclass
 class ProblemError(Exception):
-    """Raised anywhere in the API layer; the error handler renders it."""
-
     type: ProblemType
     detail: str | None = None
     errors: Sequence[ValidationIssue] = ()
@@ -98,7 +94,11 @@ def problem_response(
     if detail is not None:
         body["detail"] = detail
     if errors:
-        body["errors"] = [issue.to_json() for issue in errors]
+        body["errors"] = [issue.to_json() for issue in sorted(errors, key=_issue_order)]
     return JSONResponse(
         body, status_code=problem.status, headers=headers, media_type=PROBLEM_MEDIA_TYPE
     )
+
+
+def _issue_order(issue: ValidationIssue) -> tuple[str, str, str]:
+    return (issue.location, issue.pointer, issue.code.value)

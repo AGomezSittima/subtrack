@@ -1,5 +1,3 @@
-"""Test-mode endpoints, mounted only when SUBTRACK_TEST_MODE=true."""
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
@@ -11,8 +9,6 @@ from subtrack.service.admin import AdminService
 
 
 class ClockSetRequest(BaseModel):
-    """Contract schema `ClockSet`."""
-
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
     now: ApiTimestamp

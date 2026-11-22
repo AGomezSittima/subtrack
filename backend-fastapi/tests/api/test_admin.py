@@ -119,3 +119,9 @@ def test_a_missing_body_is_a_required_error(client: TestClient) -> None:
 def body_issues_raw(client: TestClient) -> list[dict[str, Any]]:
     errors: list[dict[str, Any]] = problem(client.post(CLOCK), "validation-error", 422)["errors"]
     return errors
+
+
+def test_issues_are_listed_by_location_pointer_and_code(client: TestClient) -> None:
+    issues = body_issues(client, {"zeta": 1, "alpha": 2})
+
+    assert [issue["pointer"] for issue in issues] == ["/alpha", "/now", "/zeta"]

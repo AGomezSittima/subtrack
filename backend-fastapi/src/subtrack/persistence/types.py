@@ -1,5 +1,3 @@
-"""Column types that store dates and timestamps as canonical ISO text."""
-
 from datetime import date, datetime
 
 from sqlalchemy import Dialect, Text
@@ -14,8 +12,6 @@ from subtrack.persistence.isotext import (
 
 
 class IsoDate(TypeDecorator[date]):
-    """A calendar date stored as `YYYY-MM-DD`."""
-
     impl = Text
     cache_ok = True
 
@@ -27,8 +23,6 @@ class IsoDate(TypeDecorator[date]):
 
 
 class UtcTimestamp(TypeDecorator[datetime]):
-    """An instant stored as UTC text with milliseconds and `Z`."""
-
     impl = Text
     cache_ok = True
 

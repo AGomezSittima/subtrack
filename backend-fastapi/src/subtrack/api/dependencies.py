@@ -1,5 +1,3 @@
-"""Composition root: builds the concrete adapters once and hands them to routes."""
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast

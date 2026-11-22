@@ -1,5 +1,3 @@
-"""ORM rows for the tables the backend reads and writes (schema owned by db/migrations)."""
-
 from datetime import datetime
 
 from sqlalchemy import Text

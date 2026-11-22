@@ -1,5 +1,3 @@
-"""Use cases behind GET /health."""
-
 from datetime import datetime
 
 from subtrack.repository.setting_key import SettingKey

@@ -1,5 +1,3 @@
-"""Decides whether a request may pass the privacy lock."""
-
 from datetime import timedelta
 
 from subtrack.clock.clock import Clock
@@ -23,7 +21,6 @@ class LockEnforcer:
         self._clock = clock
 
     def allows(self, session_token: str | None, *, background: bool) -> bool:
-        """Open while no passcode is set; otherwise only with a live session, which it renews."""
         with self._transaction() as repositories:
             if repositories.settings.value(SettingKey.PASSCODE_HASH) is None:
                 return True

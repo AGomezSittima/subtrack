@@ -1,5 +1,3 @@
-"""One database transaction with the repositories bound to it."""
-
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
@@ -20,7 +18,6 @@ type Transaction = Callable[[], AbstractContextManager[Repositories]]
 
 
 def sql_transaction(session_factory: sessionmaker[Session]) -> Transaction:
-    """Commits when the block succeeds, rolls back when it raises."""
 
     @contextmanager
     def transaction() -> Iterator[Repositories]:

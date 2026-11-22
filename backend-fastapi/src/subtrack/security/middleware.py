@@ -1,5 +1,3 @@
-"""Lock enforcement for every request under the API prefix, before routing and body parsing."""
-
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send

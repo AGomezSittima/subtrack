@@ -1,5 +1,3 @@
-"""Test-mode use cases: reset the database and set the clock."""
-
 from datetime import datetime
 
 from subtrack.clock.settable import SettableClock

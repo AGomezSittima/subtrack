@@ -1,5 +1,3 @@
-"""The one error handler: every error leaves the API as problem JSON."""
-
 import logging
 import re
 from collections.abc import Callable, Sequence

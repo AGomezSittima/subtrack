@@ -1,5 +1,3 @@
-"""Keys of the `setting` table that the backend reads; the schema lists them all."""
-
 from enum import StrEnum
 
 

@@ -1,5 +1,3 @@
-"""The only place that opens database connections."""
-
 import sqlite3
 from pathlib import Path
 
@@ -11,7 +9,6 @@ BUSY_TIMEOUT_MS = 5000
 
 
 def create_sqlite_engine(db_path: Path) -> Engine:
-    """Engine with one pooled connection: SQLite has a single writer."""
     engine = create_engine(
         f"sqlite+pysqlite:///{db_path}",
         poolclass=QueuePool,

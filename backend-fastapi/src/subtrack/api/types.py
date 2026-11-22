@@ -1,5 +1,3 @@
-"""Shared API field types."""
-
 from datetime import datetime
 from typing import Annotated
 

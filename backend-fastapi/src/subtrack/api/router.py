@@ -1,5 +1,3 @@
-"""Every route served under /api/v1."""
-
 from fastapi import APIRouter
 
 from subtrack.api import admin, health

@@ -1,5 +1,3 @@
-"""Test-mode clock: follows another clock until pinned to an instant."""
-
 from datetime import UTC, datetime
 from threading import Lock
 

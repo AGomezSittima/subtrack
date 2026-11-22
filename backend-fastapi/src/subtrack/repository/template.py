@@ -1,5 +1,3 @@
-"""Restores every table from a freshly migrated template database (test mode only)."""
-
 from pathlib import Path
 from typing import Protocol
 
@@ -22,7 +20,6 @@ class SqlTemplateRepository:
         self._template_path = template_path
 
     def restore(self) -> None:
-        """Replace every table's rows with the template's, in one transaction."""
         connection = self._engine.raw_connection()
         try:
             cursor = connection.cursor()
