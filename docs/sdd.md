@@ -347,7 +347,7 @@ The `backend` field in `/health` lets the frontend show which implementation is 
 `contract/openapi.yaml` is the detailed source; these are the decisions it settles.
 
 - **Conventions.** Every object has `additionalProperties: false`. Lists come wrapped (`{"items": [...]}`) so fields can be added later. A subscription always carries its derived fields (`next_renewal_date`, `monthly_equivalent_cents`, `yearly_equivalent_cents`, `payment_count`, `total_paid_cents`), in lists too. A payment carries `subscription_name`. `PATCH` changes only the fields sent; `null` clears a nullable field. Text limits (`maxLength`) count Unicode code points, as JSON Schema does (Java must use `codePointCount`, not `length()`).
-- **Security.** One cookie scheme, `subtrack_session`, applied globally; `security: []` only on `/health`, `/auth/status` and `/auth/unlock`.
+- **Security.** One cookie scheme, `subtrack_session`, applied globally; `security: []` only on `/health`, `/auth/status`, `/auth/unlock` and the test-mode endpoints `/admin/clock` and `/admin/reset`.
 - **Status changes** (`POST /subscriptions/{id}/status`, body `{status, date?, ends_on?}`; `date` defaults to today and is only for pause and cancel, `ends_on` only for cancel). Allowed: trial → active, paused, cancelled; active → paused, cancelled; paused → active, cancelled; cancelled → active. Anything else is 409 `invalid-status-transition`.
 - **Payments.** A manual payment (`POST /payments`, `{subscription_id, paid_cents, paid_date, note?}`) is stored as `paid`, source `manual`, with `due_date = paid_date` and `expected_cents = paid_cents`. Confirming defaults `paid_cents` to `expected_cents` and `paid_date` to the due date. Confirm, skip and fail apply only to `expected` payments (otherwise 409 `payment-not-expected`).
 - **Statistics.** Breakdowns are ordered by exact monthly equivalent descending, then key, and allocated by largest remainder with the parts in key order: categories by code, payment methods by label with no label last, subscriptions by id (BR-26; equal remainders go to the earlier part). The display order doesn't affect the allocation. `/stats/monthly` groups payments by the month of their due date: `planned_cents` is every payment's `expected_cents`, `actual_cents` the paid ones' `paid_cents`.
@@ -490,7 +490,12 @@ The scheduler job contains no business rules. It loads data, calls the pure plan
 
 Scope: a privacy screen against casual use of a logged-in computer, and a learning comparison of session auth in FastAPI vs Spring Security. It is not data protection; the SQLite file is unencrypted by design (SRS assumptions).
 
-When a passcode is set, every endpoint returns 401 without a valid session, except `/health`, `/auth/status` and `/auth/unlock`. Enforcement is one place per backend: an ASGI middleware in FastAPI ([ADR 0006](adr/0006-fastapi-lock-middleware.md)), the Spring Security filter chain in Spring. Both run before routing and body parsing. So with a passcode set and no valid session, any `/api/v1` path except the three public ones answers 401, whether the route exists, the method is allowed or the body is valid. Paths outside `/api/v1` are not locked.
+When a passcode is set, every endpoint returns 401 without a valid session, except `/health`, `/auth/status` and `/auth/unlock`, and in test mode `/admin/clock` and `/admin/reset`, so the test suite can reset and set the clock on a locked database. `/admin/run-scheduler` stays locked. Enforcement is one place per backend: an ASGI middleware in FastAPI ([ADR 0006](adr/0006-fastapi-lock-middleware.md)), the Spring Security filter chain in Spring. Both run before routing and body parsing. Each request is decided in this order:
+
+1. Paths outside `/api/v1` are not locked.
+2. Outside test mode, `/admin/clock` and `/admin/reset` answer 404 whether or not a session exists, so a locked API doesn't reveal them.
+3. The exceptions above pass.
+4. Any other `/api/v1` path needs a valid session, or answers 401, whether the route exists, the method is allowed or the body is valid.
 
 A request passes when no passcode is set, or when the SHA-256 of its `subtrack_session` cookie is in `session` and that session isn't idle-expired under `lock_policy`: `idle_N` expires once more than N minutes have passed since `last_activity_at`, and `on_open` and `manual` never expire. A passing request sets `last_activity_at` to now, unless it carries `X-Subtrack-Background: 1`. Time comes from the injected clock.
 

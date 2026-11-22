@@ -30,7 +30,7 @@ class LockEnforcementTest extends TestModeApiTest {
   private static final Instant NOW = Instant.parse("2026-11-10T15:18:00Z");
   private static final String COOKIE_VALUE = "value-of-the-session-cookie";
   private static final Cookie SESSION = new Cookie(SessionTokens.COOKIE, COOKIE_VALUE);
-  private static final String PROTECTED = "/api/v1/admin/reset";
+  private static final String PROTECTED = "/api/v1/admin/run-scheduler";
 
   private static void addSession(Instant lastActivityAt) {
     String at = IsoText.formatTimestamp(lastActivityAt);
@@ -48,7 +48,7 @@ class LockEnforcementTest extends TestModeApiTest {
 
   @Test
   void everythingIsOpenWhileNoPasscodeIsSet() throws Exception {
-    mvc.perform(post(PROTECTED)).andExpect(status().isNoContent());
+    expectProblem(mvc.perform(post(PROTECTED)), "not-found", 404);
   }
 
   @Test
@@ -68,11 +68,10 @@ class LockEnforcementTest extends TestModeApiTest {
 
     @ParameterizedTest
     @CsvSource({
-      "POST, /api/v1/admin/reset",
-      "POST, /api/v1/admin/clock",
+      "POST, /api/v1/admin/run-scheduler",
       "GET, /api/v1/subscriptions",
       "GET, /api/v1",
-      "DELETE, /api/v1/admin/reset"
+      "DELETE, /api/v1/admin/run-scheduler"
     })
     void aPasscodeLocksEveryApiPathWithoutASession(String method, String path) throws Exception {
       expectProblem(mvc.perform(request(HttpMethod.valueOf(method), path)), "unauthorized", 401);
@@ -82,9 +81,21 @@ class LockEnforcementTest extends TestModeApiTest {
     void aLockedRequestIsRefusedBeforeItsBodyIsRead() throws Exception {
       expectProblem(
           mvc.perform(
-              post("/api/v1/admin/clock").contentType(MediaType.APPLICATION_JSON).content("{bad")),
+              post("/api/v1/subscriptions")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{bad")),
           "unauthorized",
           401);
+    }
+
+    @Test
+    void testModeEndpointsAreNotBehindTheLock() throws Exception {
+      mvc.perform(
+              post("/api/v1/admin/clock")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"now\": \"" + Rows.TS + "\"}"))
+          .andExpect(status().isNoContent());
+      mvc.perform(post("/api/v1/admin/reset")).andExpect(status().isNoContent());
     }
 
     @ParameterizedTest
@@ -116,12 +127,7 @@ class LockEnforcementTest extends TestModeApiTest {
     void aValidSessionPassesAndRenewsItsActivity() throws Exception {
       addSession(NOW.minus(Duration.ofMinutes(10)));
 
-      mvc.perform(
-              post("/api/v1/admin/clock")
-                  .cookie(SESSION)
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content("{\"now\": \"2026-11-10T15:20:00.000Z\"}"))
-          .andExpect(status().isNoContent());
+      expectProblem(mvc.perform(get("/api/v1/nope").cookie(SESSION)), "not-found", 404);
 
       assertThat(lastActivity()).isEqualTo("2026-11-10T15:18:00.000Z");
     }

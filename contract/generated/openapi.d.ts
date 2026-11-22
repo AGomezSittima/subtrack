@@ -684,8 +684,8 @@ export interface paths {
         put?: never;
         /**
          * Set the clock (test mode only)
-         * @description **Test mode only; 404 otherwise.** Pins the backend clock to `now`. It stays there until set
-         *     again; "today" is the date of `now` in Europe/Madrid.
+         * @description **Test mode only; 404 otherwise.** Not subject to the privacy lock. Pins the backend clock to
+         *     `now`. It stays there until set again; "today" is the date of `now` in Europe/Madrid.
          */
         post: operations["setClock"];
         delete?: never;
@@ -705,7 +705,7 @@ export interface paths {
         put?: never;
         /**
          * Reset to a fresh database (test mode only)
-         * @description **Test mode only; 404 otherwise.** Restores the database to its state right after migrations (no user data, default settings, the seeded catalogue) and unpins the clock.
+         * @description **Test mode only; 404 otherwise.** Not subject to the privacy lock. Restores the database to its state right after migrations (no user data, default settings, the seeded catalogue) and unpins the clock.
          */
         post: operations["resetData"];
         delete?: never;
@@ -2347,7 +2347,6 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["MalformedRequest"];
-            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationFailed"];
         };
@@ -2368,7 +2367,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };

@@ -64,7 +64,7 @@ If a recipe is missing, add it to the `justfile` rather than documenting a one-o
 - **Time is injected.** No direct `now()` / `LocalDate.now()` / `Temporal.Now` outside the `clock` module.
 - **External services behind interfaces** we own (logo provider, API client, clock, repositories). No vendor types outside adapters.
 - **No user-facing strings in code.** Everything through translation files (`en` and `es` together). The backend sends codes and parameters, never display text.
-- **Security.** Never log, return or store secrets in readable form. Every endpoint is protected by default; exceptions are `/health`, `/auth/status`, `/auth/unlock`.
+- **Security.** Never log, return or store secrets in readable form. Every endpoint is protected by default; exceptions are `/health`, `/auth/status`, `/auth/unlock`, and in test mode only `/admin/clock` and `/admin/reset`.
 - **Comments.** None by default. Only a non-obvious why caused by an external constraint, in one line. No FR/BR/NFR IDs in code or comments (only in test names, case `rules`, commits and PRs). No workaround comments: fix it, leave `TODO(#<issue>)`, or write an ADR. OpenAPI descriptions stay short. See `docs/standards.md`, Comments.
 - **Tests at the highest useful level:** end to end > integration (shared API suite) > unit. Every BR has a case. No test reads the real clock.
 

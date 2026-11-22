@@ -18,6 +18,7 @@ A FastAPI router dependency runs only for a request that matched a route, and on
 
 - FastAPI enforces the lock in a pure ASGI middleware (`security/middleware.py`) in front of routing. It is the counterpart of the servlet filter chain: it sees every request before routing and body parsing, and calls the same `LockEnforcer` decision.
 - Both backends check the lock first. With a passcode set and no valid session, every `/api/v1` path except `/health`, `/auth/status` and `/auth/unlock` answers 401, whether the route exists, the method is allowed or the body is valid. Paths outside `/api/v1` are not locked and answer 404.
+- In test mode, `/admin/clock` and `/admin/reset` are exempt as well, so the shared suite can reset a locked database between tests. Outside test mode they answer 404 before the lock.
 - The rest of 0004 stands.
 
 ## Alternatives

@@ -33,6 +33,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.container = container
     install_error_handlers(app)
-    app.add_middleware(LockMiddleware, enforcer=container.lock, prefix=API_PREFIX)
+    app.add_middleware(
+        LockMiddleware, enforcer=container.lock, prefix=API_PREFIX, test_mode=config.test_mode
+    )
     app.include_router(api_router(test_mode=config.test_mode))
     return app

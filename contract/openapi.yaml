@@ -939,8 +939,9 @@ paths:
       tags: [admin]
       summary: Set the clock (test mode only)
       description: |
-        **Test mode only; 404 otherwise.** Pins the backend clock to `now`. It stays there until set
-        again; "today" is the date of `now` in Europe/Madrid.
+        **Test mode only; 404 otherwise.** Not subject to the privacy lock. Pins the backend clock to
+        `now`. It stays there until set again; "today" is the date of `now` in Europe/Madrid.
+      security: []
       requestBody:
         required: true
         content:
@@ -952,8 +953,6 @@ paths:
           description: The clock is set.
         "400":
           $ref: "#/components/responses/MalformedRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "422":
@@ -964,12 +963,11 @@ paths:
       operationId: resetData
       tags: [admin]
       summary: Reset to a fresh database (test mode only)
-      description: "**Test mode only; 404 otherwise.** Restores the database to its state right after migrations (no user data, default settings, the seeded catalogue) and unpins the clock."
+      description: "**Test mode only; 404 otherwise.** Not subject to the privacy lock. Restores the database to its state right after migrations (no user data, default settings, the seeded catalogue) and unpins the clock."
+      security: []
       responses:
         "204":
           description: The database is fresh.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 

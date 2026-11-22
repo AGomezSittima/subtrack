@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from tests.support.app import build_client, container, database_connection
 from tests.support.problems import problem
-from tests.support.rows import fill_every_user_table, rows
+from tests.support.rows import TS, fill_every_user_table, rows, set_passcode
 
 CLOCK = "/api/v1/admin/clock"
 RESET = "/api/v1/admin/reset"
@@ -21,6 +21,15 @@ def test_test_endpoints_are_not_found_outside_test_mode(
     problem(
         production_client.post(path, json={"now": "2026-11-10T15:18:00.000Z"}), "not-found", 404
     )
+
+
+@pytest.mark.parametrize("path", [CLOCK, RESET])
+def test_test_endpoints_are_not_found_outside_test_mode_even_when_locked(
+    production_client: TestClient, db: sqlite3.Connection, path: str
+) -> None:
+    set_passcode(db)
+
+    problem(production_client.post(path, json={"now": TS}), "not-found", 404)
 
 
 def test_outside_test_mode_the_clock_is_the_system_clock(production_client: TestClient) -> None:

@@ -206,7 +206,7 @@ Shared rules:
 
 - Secrets (passcode, session tokens, API keys) are never logged, returned by the API, or stored in readable form. Passcodes are hashed with Argon2id; session tokens are stored as hashes.
 - Access control lives in one place per backend (FastAPI ASGI middleware, Spring Security filter chain; ADR 0006); individual endpoints don't re-implement it.
-- New endpoints are protected by default; exceptions (`/health`, `/auth/status`, `/auth/unlock`) are listed explicitly and covered by tests.
+- New endpoints are protected by default; exceptions (`/health`, `/auth/status`, `/auth/unlock`, and in test mode only `/admin/clock` and `/admin/reset`) are listed explicitly and covered by tests.
 - Cookies are HttpOnly and SameSite=Strict. The frontend never reads or stores the session token.
 - On any 401 the frontend drops all cached data before showing the lock screen.
 

@@ -8,11 +8,11 @@ from fastapi.testclient import TestClient
 from subtrack.persistence.isotext import format_timestamp
 from tests.support.app import pin_clock
 from tests.support.problems import problem
-from tests.support.rows import insert, set_passcode
+from tests.support.rows import TS, insert, set_passcode
 
 NOW = datetime(2026, 11, 10, 15, 18, tzinfo=UTC)
 COOKIE_VALUE = "value-of-the-session-cookie"
-PROTECTED = "/api/v1/admin/reset"
+PROTECTED = "/api/v1/admin/run-scheduler"
 
 
 def add_session(client: TestClient, db: sqlite3.Connection, last_activity_at: datetime) -> None:
@@ -42,14 +42,13 @@ def locked(client: TestClient, db: sqlite3.Connection) -> TestClient:
 
 
 def test_everything_is_open_while_no_passcode_is_set(client: TestClient) -> None:
-    assert client.post(PROTECTED).status_code == 204
+    problem(client.post(PROTECTED), "not-found", 404)
 
 
 @pytest.mark.parametrize(
     ("method", "path"),
     [
         ("POST", PROTECTED),
-        ("POST", "/api/v1/admin/clock"),
         ("GET", "/api/v1/subscriptions"),
         ("GET", "/api/v1"),
         ("DELETE", PROTECTED),
@@ -63,10 +62,15 @@ def test_a_passcode_locks_every_api_path_without_a_session(
 
 def test_a_locked_request_is_refused_before_its_body_is_read(locked: TestClient) -> None:
     response = locked.post(
-        "/api/v1/admin/clock", content=b"{bad", headers={"content-type": "application/json"}
+        "/api/v1/subscriptions", content=b"{bad", headers={"content-type": "application/json"}
     )
 
     problem(response, "unauthorized", 401)
+
+
+def test_test_mode_endpoints_are_not_behind_the_lock(locked: TestClient) -> None:
+    assert locked.post("/api/v1/admin/clock", json={"now": TS}).status_code == 204
+    assert locked.post("/api/v1/admin/reset").status_code == 204
 
 
 @pytest.mark.parametrize(
@@ -95,9 +99,9 @@ def test_a_valid_session_passes_and_renews_its_activity(
 ) -> None:
     add_session(locked, db, NOW - timedelta(minutes=10))
 
-    response = locked.post("/api/v1/admin/clock", json={"now": "2026-11-10T15:20:00.000Z"})
+    response = locked.get("/api/v1/nope")
 
-    assert response.status_code == 204
+    problem(response, "not-found", 404)
     assert last_activity(db) == "2026-11-10T15:18:00.000Z"
 
 

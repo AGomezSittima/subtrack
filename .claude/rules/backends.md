@@ -31,7 +31,7 @@ Full detail: `docs/sdd.md` (Backend design, Privacy lock, Date and timestamp sto
 - The scheduler job is plain code in `scheduler`; the trigger (APScheduler / `@Scheduled`) only calls it. It runs at startup, hourly, and (test mode) on `POST /admin/run-scheduler`.
 
 ## Security
-- Lock enforcement lives in one place (FastAPI ASGI middleware / Spring Security filter chain, both before routing). New endpoints are protected by default.
+- Lock enforcement lives in one place (FastAPI ASGI middleware / Spring Security filter chain, both before routing). New endpoints are protected by default. Exceptions: `/health`, `/auth/status`, `/auth/unlock`, and in test mode only `/admin/clock` and `/admin/reset` (404 before the lock outside test mode).
 - Passcodes hashed with Argon2id (PHC string); session tokens stored as SHA-256 hashes. Never log `/auth/*` request bodies.
 - Test-only endpoints (`/admin/run-scheduler`, `/admin/clock`, `/admin/reset`) return 404 unless `SUBTRACK_TEST_MODE=true`.
 - The server makes no outbound network calls.

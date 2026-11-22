@@ -6,7 +6,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import dev.subtrack.clock.SettableClock;
 import dev.subtrack.support.ProductionApiTest;
+import dev.subtrack.support.Rows;
+import dev.subtrack.support.TestDatabase;
 import java.time.Clock;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,5 +33,31 @@ class OutsideTestModeTest extends ProductionApiTest {
         "not-found",
         404);
     assertThat(clock).isNotInstanceOf(SettableClock.class);
+  }
+
+  @Nested
+  class Locked {
+
+    @BeforeEach
+    void lock() {
+      Rows.setPasscode(DATABASE, "idle_15");
+    }
+
+    @AfterEach
+    void unlock() {
+      TestDatabase.execute(DATABASE, "UPDATE setting SET value = NULL WHERE key = 'passcode_hash'");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/v1/admin/clock", "/api/v1/admin/reset"})
+    void testEndpointsAreStillNotFound(String path) throws Exception {
+      expectProblem(
+          mvc.perform(
+              post(path)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"now\": \"" + Rows.TS + "\"}")),
+          "not-found",
+          404);
+    }
   }
 }
