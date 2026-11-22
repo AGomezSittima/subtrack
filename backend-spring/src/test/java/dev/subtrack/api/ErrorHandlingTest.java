@@ -4,6 +4,7 @@ import static dev.subtrack.support.ProblemMatchers.expectProblem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import dev.subtrack.support.TestModeApiTest;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,12 +37,13 @@ class ErrorHandlingTest extends TestModeApiTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"DELETE", "PUT", "PATCH", "OPTIONS"})
+  @ValueSource(strings = {"DELETE", "PUT", "PATCH", "OPTIONS", "QUERY"})
   void aKnownPathWithAnotherMethodIsNotAllowed(String method) throws Exception {
     expectProblem(
-        mvc.perform(request(HttpMethod.valueOf(method), "/api/v1/health")),
-        "method-not-allowed",
-        405);
+            mvc.perform(request(HttpMethod.valueOf(method), "/api/v1/health")),
+            "method-not-allowed",
+            405)
+        .andExpect(header().string(HttpHeaders.ALLOW, "GET, HEAD"));
   }
 
   @Test

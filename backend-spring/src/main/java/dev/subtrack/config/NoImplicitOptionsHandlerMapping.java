@@ -2,8 +2,8 @@ package dev.subtrack.config;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.TreeSet;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -23,14 +23,11 @@ class NoImplicitOptionsHandlerMapping extends RequestMappingHandlerMapping {
     if (handler == null || !HttpMethod.OPTIONS.matches(request.getMethod())) {
       return handler;
     }
-    Set<String> allowed = new TreeSet<>();
+    Set<String> allowed = new HashSet<>();
     for (RequestMappingInfo info : infos) {
       if (info.getActivePatternsCondition().getMatchingCondition(request) != null) {
         for (RequestMethod method : info.getMethodsCondition().getMethods()) {
           allowed.add(method.name());
-          if (method == RequestMethod.GET) {
-            allowed.add(RequestMethod.HEAD.name());
-          }
         }
       }
     }

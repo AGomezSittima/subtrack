@@ -3,16 +3,21 @@ package dev.subtrack.api;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -108,11 +113,22 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
           }
         };
     HttpHeaders kept = new HttpHeaders();
-    String allow = headers.getFirst(HttpHeaders.ALLOW);
-    if (allow != null) {
-      kept.set(HttpHeaders.ALLOW, allow);
+    if (exception instanceof HttpRequestMethodNotSupportedException unsupported) {
+      kept.set(HttpHeaders.ALLOW, allow(unsupported));
     }
     return Problems.response(type, null, List.of(), kept);
+  }
+
+  private static String allow(HttpRequestMethodNotSupportedException exception) {
+    Set<String> methods = new TreeSet<>();
+    String[] supported = exception.getSupportedMethods();
+    if (supported != null) {
+      methods.addAll(Arrays.asList(supported));
+    }
+    if (methods.contains(HttpMethod.GET.name())) {
+      methods.add(HttpMethod.HEAD.name());
+    }
+    return String.join(", ", methods);
   }
 
   private static ResponseEntity<Object> invalid(IssueCode code, String pointer) {

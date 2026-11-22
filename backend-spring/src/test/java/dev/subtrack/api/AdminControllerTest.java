@@ -105,7 +105,8 @@ class AdminControllerTest extends TestModeApiTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"text/plain", "application/x-www-form-urlencoded", ""})
+  @ValueSource(
+      strings = {"text/plain", "application/x-www-form-urlencoded", "multipart/form-data", ""})
   void aBodyThatIsNotJsonIsAnUnsupportedMediaType(String contentType) throws Exception {
     MockHttpServletRequestBuilder request =
         post(CLOCK).content("{\"now\": \"2026-11-10T15:18:00.000Z\"}");
