@@ -13,11 +13,12 @@ def test_an_unknown_route_is_not_found(client: TestClient) -> None:
         assert problem(client.get(path), "not-found", 404).keys() == {"type", "title", "status"}
 
 
-@pytest.mark.parametrize("method", ["DELETE", "PUT", "PATCH", "OPTIONS"])
+@pytest.mark.parametrize("method", ["DELETE", "PUT", "PATCH", "OPTIONS", "QUERY"])
 def test_a_known_path_with_another_method_is_not_allowed(client: TestClient, method: str) -> None:
     response = client.request(method, "/api/v1/health")
 
     problem(response, "method-not-allowed", 405)
+    assert response.headers["allow"] == "GET, HEAD"
 
 
 @pytest.fixture

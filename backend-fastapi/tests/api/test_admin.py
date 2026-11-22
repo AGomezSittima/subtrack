@@ -102,7 +102,12 @@ def test_malformed_json_is_a_malformed_request(client: TestClient) -> None:
 
 @pytest.mark.parametrize(
     "headers",
-    [{"content-type": "text/plain"}, {"content-type": "application/x-www-form-urlencoded"}, {}],
+    [
+        {"content-type": "text/plain"},
+        {"content-type": "application/x-www-form-urlencoded"},
+        {"content-type": "multipart/form-data"},
+        {},
+    ],
 )
 def test_a_body_that_is_not_json_is_an_unsupported_media_type(
     client: TestClient, headers: dict[str, str]

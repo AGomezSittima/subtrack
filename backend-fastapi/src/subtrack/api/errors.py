@@ -78,7 +78,14 @@ def _problem(_: Request, exc: ProblemError) -> JSONResponse:
 def _http(_: Request, exc: HTTPException) -> JSONResponse:
     problem = _HTTP_PROBLEMS.get(exc.status_code, ProblemType.INTERNAL_ERROR)
     allow = (exc.headers or {}).get("Allow")
-    return problem_response(problem, headers={"Allow": allow} if allow else None)
+    return problem_response(problem, headers={"Allow": _allow(allow)} if allow else None)
+
+
+def _allow(header: str) -> str:
+    methods = {method.strip() for method in header.split(",")}
+    if "GET" in methods:
+        methods.add("HEAD")
+    return ", ".join(sorted(methods))
 
 
 def _validation(request: Request, exc: RequestValidationError) -> JSONResponse:
