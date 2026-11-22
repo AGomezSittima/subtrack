@@ -1,6 +1,6 @@
 # 0004. The privacy lock is a privacy screen, not data protection
 
-Date: 2026-11-10 · Status: Accepted
+Date: 2026-11-10 · Status: Accepted · FastAPI enforcement point amended by [0006](0006-fastapi-lock-middleware.md)
 
 ## Context
 

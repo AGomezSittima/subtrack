@@ -192,7 +192,7 @@ Both backends follow the same layering (API → service → billing core → rep
 | Types | Full type hints, strict type checker (mypy or pyright) | Compiler warnings as errors, nullness annotations |
 | DTOs | Pydantic models, separate from ORM models | Java records, separate from JPA entities |
 | Dependency injection | FastAPI `Depends`, wired in one module | Constructor injection only, no field `@Autowired` |
-| Errors | Domain exceptions mapped to problem JSON in one handler | Domain exceptions mapped via `@RestControllerAdvice` + `ProblemDetail` |
+| Errors | Domain exceptions mapped to problem JSON in one handler | Domain exceptions mapped via `@RestControllerAdvice` to a `Problem` record (not `ProblemDetail`: Spring adds an `instance` the contract forbids) |
 | Logging | stdlib `logging`, structured, no `print` | SLF4J, no `System.out` |
 
 Shared rules:
@@ -205,7 +205,7 @@ Shared rules:
 ## Security
 
 - Secrets (passcode, session tokens, API keys) are never logged, returned by the API, or stored in readable form. Passcodes are hashed with Argon2id; session tokens are stored as hashes.
-- Access control lives in one place per backend (FastAPI router dependency, Spring Security filter chain); individual endpoints don't re-implement it.
+- Access control lives in one place per backend (FastAPI ASGI middleware, Spring Security filter chain; ADR 0006); individual endpoints don't re-implement it.
 - New endpoints are protected by default; exceptions (`/health`, `/auth/status`, `/auth/unlock`) are listed explicitly and covered by tests.
 - Cookies are HttpOnly and SameSite=Strict. The frontend never reads or stores the session token.
 - On any 401 the frontend drops all cached data before showing the lock screen.

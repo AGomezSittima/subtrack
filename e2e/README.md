@@ -7,7 +7,7 @@ Playwright suites that run against the full Compose stack, once per backend prof
 | `api/`     | `api`   | Shared API suite over HTTP against `/api/v1`; every business rule gets a case here | every push (`ci.yml`)          |
 | `ui/`      | `ui`    | Browser flows in Chromium, in English plus one Spanish smoke flow                  | `main` and staging (`e2e.yml`) |
 | `docs/`    | `docs`  | The API docs page (dev profile) lists every operation; `/api` reaches the backend  | by hand (`just test-docs`)     |
-| `support/` |         | Environment and fixtures shared by all suites                                      |                                |
+| `support/` |         | Environment, typed API client, reset fixture, clock helper, problem assertions     |                                |
 
 ```sh
 just e2e-setup            # once: install Chromium
@@ -24,4 +24,8 @@ EXPECTED_BACKEND=spring pnpm exec playwright test --project api
 
 Environment: `BASE_URL` (default `http://127.0.0.1:${SUBTRACK_PORT:-8080}`), `DOCS_BASE_URL` (default `http://127.0.0.1:${SUBTRACK_DOCS_PORT:-8081}`), `EXPECTED_BACKEND` (`fastapi` or `spring`; unset accepts either). Only `support/env.ts` reads them.
 
-Rules: selectors use roles and labels (enforced by `playwright/no-raw-locators`), each test starts from a fresh database (`POST /admin/reset`, once it exists), and no test reads the real clock.
+API tests import `test` and `expect` from `support/fixtures.ts`. Each test then gets a typed `api` client (`openapi-fetch` over `@subtrack/contract`) and starts from a fresh database: the fixture calls `POST /admin/reset`, which also unpins the clock. Set the date with `setClock(api, Temporal.Instant)` from `support/clock.ts`.
+
+Contract checks: `just test-api <profile>` runs Schemathesis after the API suite on the same stack (`just test-contract <profile>` runs it alone). `schemathesis/schemathesis.toml` lists the operations both backends implement; add yours when a slice implements them.
+
+Rules: selectors use roles and labels (enforced by `playwright/no-raw-locators`), each test starts from a fresh database, and no test reads the real clock.

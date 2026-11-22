@@ -27,11 +27,11 @@ Full detail: `docs/sdd.md` (Backend design, Privacy lock, Date and timestamp sto
 - Money as integer cents (`int` / `long`). Inserts that must be idempotent use `INSERT … ON CONFLICT DO NOTHING`.
 
 ## Time and scheduling
-- Get the current date/time only from the injected `Clock`. In test mode, `POST /admin/clock` sets it.
+- Get the current date/time only from the injected `Clock` (Ruff `TID251` and Checkstyle enforce it). In test mode, `POST /admin/clock` sets it.
 - The scheduler job is plain code in `scheduler`; the trigger (APScheduler / `@Scheduled`) only calls it. It runs at startup, hourly, and (test mode) on `POST /admin/run-scheduler`.
 
 ## Security
-- Lock enforcement lives in one place (FastAPI router dependency / Spring Security filter chain). New endpoints are protected by default.
+- Lock enforcement lives in one place (FastAPI ASGI middleware / Spring Security filter chain, both before routing). New endpoints are protected by default.
 - Passcodes hashed with Argon2id (PHC string); session tokens stored as SHA-256 hashes. Never log `/auth/*` request bodies.
 - Test-only endpoints (`/admin/run-scheduler`, `/admin/clock`, `/admin/reset`) return 404 unless `SUBTRACK_TEST_MODE=true`.
 - The server makes no outbound network calls.
@@ -46,5 +46,5 @@ Full detail: `docs/sdd.md` (Backend design, Privacy lock, Date and timestamp sto
 
 ## Java / Spring Boot
 - Gradle wrapper with version catalog. Spotless for formatting; compiler warnings as errors.
-- Java records for DTOs; `ProblemDetail` via `@RestControllerAdvice`. SLF4J, never `System.out`.
+- Java records for DTOs; problem JSON via `@RestControllerAdvice` and the `Problem` record (not `ProblemDetail`). SLF4J, never `System.out`.
 - `sqlite-jdbc` + `hibernate-community-dialects` (`SQLiteDialect`), versions from Spring's BOM where possible.

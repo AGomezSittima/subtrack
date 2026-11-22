@@ -42,7 +42,7 @@ Chosen on 2026-11-12: latest stable versions that are compatible with each other
 | Java | 25 LTS |  |
 | Spring Boot | 4.1.1 | Hibernate, community SQLite dialect and Flyway versions managed by Spring's BOM where possible |
 | sqlite-jdbc | Latest (xerial) |  |
-| Flyway, nginx, Playwright images | Latest, pinned by tag |  |
+| Flyway, nginx, Playwright, Schemathesis images | Latest, pinned by tag | Schemathesis 4.33.4 (4.34.0 was a day old when pinned) |
 
 ### CI
 
@@ -141,7 +141,7 @@ volumes:
   subs-data:
 ```
 
-Both backends listen on port 8000 inside the network and serve everything under `/api/v1`. The host ports are optional configuration: `SUBTRACK_PORT` (default 8080) and `SUBTRACK_DOCS_PORT` (default 8081) from the shell or a root `.env` (`.env.example` documents them). The test overlay `docker-compose.test.yml` only sets `SUBTRACK_TEST_MODE=true` on both backends.
+Both backends listen on port 8000 inside the network and serve everything under `/api/v1`. The host ports are optional configuration: `SUBTRACK_PORT` (default 8080) and `SUBTRACK_DOCS_PORT` (default 8081) from the shell or a root `.env` (`.env.example` documents them). The test overlay `docker-compose.test.yml` sets `SUBTRACK_TEST_MODE=true` and `SUBTRACK_TEMPLATE_DB` on both backends, makes the `migrate` job also migrate the template database (Testing), and adds the `schemathesis` service (profile `contract`).
 
 ### Everyday use
 
@@ -272,8 +272,9 @@ Besides the unique constraints above (`catalog_service.name`, `price_history (su
 - `V3__trial_end_date_and_resume_dates.sql` rebuilds `subscription` to add the trial check and the `resumed_on` and `unarchived_on` columns. SQLite can't add a table `CHECK` with `ALTER TABLE`, so it follows SQLite's documented rebuild: create the new table, copy, drop, rename, recreate the index. That procedure needs foreign keys off, or dropping the old table would cascade to `price_history` and `payment`. Flyway runs each migration in a transaction, where `PRAGMA foreign_keys = OFF` has no effect. But Flyway's sqlite-jdbc connection already leaves foreign keys off (checked with the pinned Flyway image), so the rebuild is safe. The migration starts by inserting `pragma_foreign_keys` into a temporary table whose `CHECK` requires 0, so it aborts before touching data if foreign keys are ever on. BEFORE INSERT/UPDATE triggers with `RAISE(ABORT, …)` would have avoided the rebuild, but they would keep the rule outside the table definition and wouldn't check existing rows. The test helper applies migrations with foreign keys off, like Flyway.
 - `backend-fastapi/tests/integration/test_migrations.py` applies every migration to a fresh SQLite file (fixture `migrated_db` in `tests/conftest.py`, reused by repository tests) and checks the constraints.
 - Only the Flyway `migrate` container changes the schema. Spring runs with Flyway disabled and `ddl-auto=validate`; FastAPI never calls `create_all`. A mismatch fails at startup.
-- Every connection sets `PRAGMA foreign_keys = ON` (off by default in SQLite), `journal_mode = WAL` and a `busy_timeout`.
-- Spring needs the `sqlite-jdbc` driver and the Hibernate community SQLite dialect.
+- Every connection sets `PRAGMA foreign_keys = ON` (off by default in SQLite), `journal_mode = WAL` and a `busy_timeout` of 5 s. Each backend opens connections in one place: FastAPI `persistence/engine.py` (a SQLAlchemy `connect` event), Spring `persistence/DataSourceConfig` (sqlite-jdbc's `SQLiteConfig` under Hikari).
+- The pool holds one connection. SQLite allows one writer at a time, so a second connection in the same process would only wait on the write lock, or fail with `SQLITE_BUSY` when a read transaction upgrades to a write. The busy timeout covers other processes, such as the `reset-passcode` command.
+- Spring needs the `sqlite-jdbc` driver and the Hibernate community SQLite dialect. sqlite-jdbc reports `INTEGER PRIMARY KEY` as `INTEGER`, so entity ids declare `columnDefinition = "INTEGER"` to pass `ddl-auto=validate` while keeping 64-bit `Long` values.
 
 ### Date and timestamp storage
 
@@ -290,8 +291,10 @@ Both backends write the same ISO text (NFR-9); neither relies on driver defaults
 
   The `GLOB` checks the shape; the round-trip through `date()` / `strftime()` rejects impossible values such as `2026-02-30` or `25:00`. It uses `IS`, not `=`: those functions return NULL for invalid input, and a `CHECK` that evaluates to NULL passes.
 - **Contract**: `Date` has pattern `^[0-9]{4}-[0-9]{2}-[0-9]{2}$` (format `date`), `Timestamp` has `^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$` (format `date-time`), and `Month` (statistics) has `^[0-9]{4}-(0[1-9]|1[0-2])$`.
-- **Spring**: JPA `AttributeConverter`s for `LocalDate` and `Instant` that read and write these strings. The SQLite JDBC driver's default date storage (epoch milliseconds) is never used.
-- **FastAPI**: SQLAlchemy's `Date` already writes `YYYY-MM-DD`; timestamps use a small custom column type (`TypeDecorator`) that writes the format above, since the default is not ISO with `Z`.
+- **Spring**: JPA `AttributeConverter`s for `LocalDate` and `Instant` (`IsoDateConverter`, `UtcTimestampConverter`, `autoApply`) that read and write these strings. The SQLite JDBC driver's default date storage (epoch milliseconds) is never used.
+- **FastAPI**: `TypeDecorator`s `IsoDate` and `UtcTimestamp`, not SQLAlchemy's `Date` and `DateTime`, so both kinds go through the same strict code.
+- **Parsing** is strict in both (`persistence/isotext.py`, `IsoText`): the shape, then a calendar check (year 0001 or later, seconds 00 to 59). A non-canonical value in the database fails to read instead of being guessed. Timestamps are truncated to milliseconds on write.
+- **API**: the same text on the wire. Responses write timestamps with milliseconds (`2026-11-10T15:18:00.000Z`, which neither framework does by default), and request timestamps are checked by the same parser (issue code `format`).
 - **Test**: the integration suite has a cross-backend check: create data through one backend, restart on the other profile, read it back identically.
 
 ## API contract
@@ -332,7 +335,7 @@ REST + JSON under `/api/v1`, written first in `contract/openapi.yaml`. Both back
 | GET | /health | `{status, backend: "fastapi" or "spring", version, last_scheduler_run}` (`last_scheduler_run` is null until the job has run) |
 | POST | /admin/clock | Test mode only: `{now}` pins the clock to a timestamp (today is its date in Europe/Madrid); 404 otherwise |
 | POST | /subscriptions/{id}/archive | Archive (FR-28); /unarchive restores it; GET /subscriptions?archived=true lists them |
-| POST | /admin/reset | Test mode only: empty all tables and re-seed the catalogue; 404 otherwise |
+| POST | /admin/reset | Test mode only: restore the database to its state right after migrations and unpin the clock; 404 otherwise |
 | GET | /auth/status | {passcode\_enabled, unlocked, lock\_policy, retry\_after}; no other data |
 | POST | /auth/unlock | {passcode}; sets the session cookie, or 401 / 429 with retry\_after |
 | POST | /auth/lock | Lock now: deletes the session and clears the cookie |
@@ -374,6 +377,12 @@ RFC 9457 problem JSON with media type `application/problem+json`: `type`, `title
 
 Each `errors[]` entry is `{location, pointer, code, params?}`: `location` is `body`, `query` or `path`; `pointer` is a JSON Pointer into the body (`/price_cents`), or `/<name>` for a parameter; `code` is one of `required`, `unknown_property`, `type`, `format`, `pattern`, `enum`, `minimum`, `maximum`, `min_length`, `max_length`, `invalid` (a cross-field rule such as `to` before `from`); `params` carries the limit (`minimum`, `maximum`, `min_length`, `max_length`, `allowed`). Both backends map their validator's errors to these codes.
 
+- **What `errors[]` lists.** At least one entry, and every entry is accurate. Constraint failures (`required`, range, length, `format`, `pattern`, `enum`) are all listed. For a structural failure (wrong type, unknown property) only the first may be listed: Jackson stops at the first one, Pydantic doesn't. In Spring, required fields fail through Bean Validation, not Jackson, and dates and timestamps are bound as strings and checked by a constraint, so those are constraint failures in both backends. Entries are sorted by `location`, `pointer` and `code`.
+- **Content type.** A body must be `application/json` or `application/*+json`. Any other content type, or a body sent without one, is 415. No body and no content type on an operation that needs one is 422 `required` at pointer `""`. Spring's multipart resolver is off, since the API takes no multipart bodies.
+- **Routing errors.** Under `/api/v1`, a path with no route is 404 `not-found`, and a known path with another method is 405 `method-not-allowed` with an `Allow` header listing the allowed methods sorted, with `HEAD` wherever `GET` is allowed. `HEAD` works on every `GET` route. `OPTIONS` and non-standard methods such as `QUERY` are treated like any other method (Spring's implicit `OPTIONS` answer and its firewall's method list are switched off). Paths outside `/api/v1` are 404. While locked, 401 comes first (Privacy lock).
+- **Unexpected errors** are 500 `internal-error` with only `type`, `title` and `status`. The stack trace goes to the log, never to the body.
+- **Where.** FastAPI: `api/problems.py` (the `ProblemType` enum, `ProblemError`) and `api/errors.py` (the exception handlers). Spring: `api/ProblemType`, `ProblemHandler` (`@RestControllerAdvice` over `ResponseEntityExceptionHandler`) and `ProblemErrorController` (errors raised outside Spring MVC). Spring renders its own `Problem` record, not `ProblemDetail`, because Spring MVC fills in `ProblemDetail.instance`, which the contract doesn't allow.
+
 ### Linting
 
 `just lint` runs Redocly CLI on the contract with `recommended-strict` (`contract/redocly.yaml`), so any finding fails. Deliberate exceptions live in `contract/.redocly.lint-ignore.yaml`, and `just gen` validates with a minimal structural config (`contract/redocly.gen.yaml`); the reasons are in ADR 0005.
@@ -410,7 +419,7 @@ Both backends use the same four layers and the same module names, so code can be
 3. **Billing core**: pure functions with no I/O: billing dates and cost normalization (BR-1 to BR-5), allocation (BR-26), payment planning (BR-6 to BR-12, BR-27) and reminder planning (BR-13 to BR-17, BR-19, BR-23, BR-24). The shared test cases target this module directly.
 4. **Repository layer**: data access for the seven tables.
 
-Time is injected everywhere (a `Clock` in Java, a `today()` provider in Python), so tests can pin "today" and the scheduler can be tested across months.
+Time is injected everywhere (a `java.time.Clock` bean in the Europe/Madrid zone in Java, a `Clock` with `now()` and `today()` in Python), so tests can pin "today" and the scheduler can be tested across months. Only the `clock` module reads the system time; Ruff (`TID251`) and Checkstyle enforce it.
 
 ### Billing core
 
@@ -431,13 +440,33 @@ The billing core is split the same way in both backends. A Python module matches
 - **Label order.** Allocation compares labels by Unicode code point. Java compares code-point arrays, not `String.compareTo`, which orders by UTF-16 unit.
 - **Invalid input** (an interval count below 1, a trial without a trial end date, a paused or cancelled subscription without its date, an empty price history) raises `BillingInputException` with a `BillingErrorCode`, never display text.
 
+### Foundations
+
+The plumbing every slice uses, split the same way in both backends:
+
+| Concern | Python `subtrack` | Java `dev.subtrack` |
+| --- | --- | --- |
+| Connections, PRAGMAs, pool | `persistence/engine.py` | `persistence/DataSourceConfig` |
+| ISO text and column types | `persistence/isotext.py`, `persistence/types.py` | `persistence/IsoText`, `IsoDateConverter`, `UtcTimestampConverter` |
+| Rows | `persistence/models.py` (`SettingRow`, `SessionRow`) | `persistence/SettingEntity`, `SessionEntity` |
+| Repositories | `repository/settings.py`, `sessions.py`, `template.py`, `transaction.py` | `repository/SettingRepository`, `SessionRepository`, `TemplateRepository` |
+| Clock | `clock/clock.py`, `system.py`, `settable.py` | `clock/ClockConfig`, `SettableClock`, `AppZone` |
+| Problem JSON | `api/problems.py`, `api/errors.py` | `api/ProblemType`, `Problem`, `ProblemHandler`, `ProblemErrorController` |
+| Test-mode endpoints | `api/admin.py`, `service/admin.py` | `api/AdminController`, `service/AdminService` |
+| Lock | `security/lock.py`, `middleware.py`, `tokens.py` | `security/LockEnforcer`, `SecurityConfig`, `LockAuthorizationManager`, `SessionTokens` |
+| Wiring | `api/dependencies.py`, `main.create_app` | constructor injection |
+
+- **Transactions.** A Python service takes a `Transaction`, a context manager that yields the repositories bound to one SQLAlchemy session and commits or rolls back. Spring services use `@Transactional`. The template restore is the one exception: SQLite can't `ATTACH` inside a transaction, so the repository manages its own connection and transaction.
+- **Test-mode beans.** The admin routes, the settable clock and the template repository exist only when `SUBTRACK_TEST_MODE=true` (FastAPI mounts the router conditionally; Spring uses `@ConditionalOnBooleanProperty`). Other paths answer 404 as unknown routes.
+- **Strict JSON.** Pydantic request models use `extra="forbid"` and `strict=True`. Jackson fails on unknown properties and doesn't coerce scalars or accept floats as integers.
+
 | Concern | FastAPI | Spring Boot |
 | --- | --- | --- |
 | Routing | `APIRouter` per resource | `@RestController` per resource |
 | Validation | Pydantic models | Bean Validation on DTO records |
 | Data access | SQLAlchemy 2 (ORM or Core) | Spring Data JPA / Hibernate |
 | SQLite driver | stdlib `sqlite3` | `sqlite-jdbc` + community dialect |
-| Errors | custom exception handlers → problem JSON | built-in `ProblemDetail` |
+| Errors | custom exception handlers → problem JSON | `@RestControllerAdvice` → own `Problem` record (Errors) |
 | Startup hook | lifespan handler | `ApplicationReadyEvent` listener |
 | Scheduler job (hourly) | APScheduler cron trigger | `@Scheduled(cron, zone)` |
 | Settings | pydantic-settings, env vars | `application.yml`, env vars |
@@ -461,7 +490,23 @@ The scheduler job contains no business rules. It loads data, calls the pure plan
 
 Scope: a privacy screen against casual use of a logged-in computer, and a learning comparison of session auth in FastAPI vs Spring Security. It is not data protection; the SQLite file is unencrypted by design (SRS assumptions).
 
-When a passcode is set, every endpoint returns 401 without a valid session, except `/health`, `/auth/status` and `/auth/unlock`. Enforcement is one place per backend: a router-level dependency in FastAPI, the Spring Security filter chain in Spring.
+When a passcode is set, every endpoint returns 401 without a valid session, except `/health`, `/auth/status` and `/auth/unlock`. Enforcement is one place per backend: an ASGI middleware in FastAPI ([ADR 0006](adr/0006-fastapi-lock-middleware.md)), the Spring Security filter chain in Spring. Both run before routing and body parsing. So with a passcode set and no valid session, any `/api/v1` path except the three public ones answers 401, whether the route exists, the method is allowed or the body is valid. Paths outside `/api/v1` are not locked.
+
+A request passes when no passcode is set, or when the SHA-256 of its `subtrack_session` cookie is in `session` and that session isn't idle-expired under `lock_policy`: `idle_N` expires once more than N minutes have passed since `last_activity_at`, and `on_open` and `manual` never expire. A passing request sets `last_activity_at` to now, unless it carries `X-Subtrack-Background: 1`. Time comes from the injected clock.
+
+Spring Security adds several things by default that the design doesn't use. They're switched off in `SecurityConfig`:
+
+| Default | Why it's off |
+| --- | --- |
+| Form login and its login page, HTTP basic, logout | Unlock and lock are JSON endpoints (`/auth/unlock`, `/auth/lock`); there are no users |
+| Generated default user and password | `UserDetailsServiceAutoConfiguration` is excluded; there is no user store |
+| CSRF tokens | The session cookie is `SameSite=Strict`, so cross-site requests don't carry it. Bodies must be JSON (415 otherwise), which a cross-site form can't send, and there is no CORS |
+| Request cache | It exists to redirect back after a login page |
+| HTTP session (`JSESSIONID`) | `STATELESS`: the session is the `subtrack_session` cookie and the `session` table |
+| Default security headers | FastAPI sends none, and the backends must answer identically. If they're wanted, both should add them in the same PR |
+| Firewall method list | `StrictHttpFirewall` lets any method through, so unlisted methods get 405 from routing, as in FastAPI |
+
+Anonymous authentication stays on, so a denied request reaches the entry point that writes the 401 problem. Error dispatches are permitted, so errors raised outside MVC still render as problem JSON.
 
 | Concern | Design |
 | --- | --- |
@@ -551,7 +596,17 @@ Testing priority is **end to end > integration > unit**, on a base of static ana
 | Integration (API) | second | One HTTP suite written once in TypeScript against `/api/v1`, run against each backend on a fresh database; covers every BR table through the API. Plus contract checks against `openapi.yaml` | Playwright request fixture, Schemathesis |
 | Unit | least | Billing core from every shared JSON case file (dates, costs, allocation, payment and reminder planning), each case its own parameterized test named by id and rules; a few hooks or components with real logic | pytest, JUnit 5, Vitest |
 
-**Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{now}`, a UTC timestamp; "today" is its date in Europe/Madrid, and the time of day drives idle-lock tests). Tests set the clock, call `POST /admin/run-scheduler`, and check payments and notifications. POST /admin/reset empties all tables, re-seeds the catalogue and restores the default settings so every test starts from a fresh database. All three test endpoints return 404 outside test mode.
+**Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{now}`, a UTC timestamp; "today" is its date in Europe/Madrid, and the time of day drives idle-lock tests). The settable clock follows the system clock until it is pinned. Tests set the clock, call `POST /admin/run-scheduler`, and check payments and notifications. All three test endpoints return 404 outside test mode.
+
+**Fresh database.** `POST /admin/reset` returns the database to its state right after migrations, so the migrations stay the only source of seeded data (default settings, catalogue):
+
+- The test overlay's `migrate` job also migrates an empty `/data/template.db`, which the backends find through `SUBTRACK_TEMPLATE_DB`. The normal stack never has one, and a backend in test mode refuses to start without it.
+- Reset attaches the template. Then, in one transaction with `PRAGMA defer_foreign_keys = ON` (foreign keys stay on), it deletes every table's rows and copies the template's rows back. The table list comes from the template's `sqlite_master`, minus `flyway_schema_history` and SQLite's own tables, so a new table needs no code change. Ids start again from 1.
+- Reset also unpins the clock, so each test sets the date it needs.
+
+**Shared API suite.** `e2e/support/` holds a client typed from `@subtrack/contract` (openapi-fetch), an automatic fixture that calls `POST /admin/reset` before each test, and `setClock(api, Temporal.Instant)`. Cases the test stack can't reach (test mode off, a locked database, reset effects on rows) are covered by the backend tests, which write the passcode and session rows directly.
+
+**Contract checks.** Schemathesis (pinned image, `schemathesis` service in the test overlay) runs after the API suite in `just test-api` (alone: `just test-contract`). It only covers operations listed in `e2e/schemathesis/schemathesis.toml`, and each slice adds its own there. The `ignored_auth` check and the generation of security parameters are off, because the test stack sets no passcode and is open by design.
 
 **Business-rule cases.** `contract/cases/*.json` hold the cases for billing dates, cost normalization, allocation, payment planning and reminder planning (format, rules per file and how to compute each in `contract/cases/README.md`), validated against `contract/cases/schema/` by `just lint`.
 
