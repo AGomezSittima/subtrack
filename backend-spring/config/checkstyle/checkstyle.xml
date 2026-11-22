@@ -4,7 +4,17 @@
   "https://checkstyle.org/dtds/configuration_1_3.dtd">
 <module name="Checker">
   <property name="severity" value="error"/>
+  <module name="SuppressionSingleFilter">
+    <property name="id" value="systemTime"/>
+    <property name="files" value="[\\/]dev[\\/]subtrack[\\/]clock[\\/]"/>
+  </module>
   <module name="TreeWalker">
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="systemTime"/>
+      <property name="format" value="\.now\(\)|\bClock\.system|System\.currentTimeMillis\("/>
+      <property name="ignoreComments" value="true"/>
+      <property name="message" value="Read the current time from the injected Clock."/>
+    </module>
     <module name="TodoComment">
       <property name="format" value="\b(TODO(?!\(#\d+\))|FIXME|XXX|HACK)\b"/>
       <message key="todo.match" value="Write TODO(#&lt;issue&gt;): link a GitHub issue; FIXME, XXX and HACK are not used."/>
