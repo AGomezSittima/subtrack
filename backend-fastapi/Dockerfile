@@ -25,4 +25,4 @@ ENV PATH=/app/.venv/bin:$PATH \
     DB_PATH=/data/subs.db
 USER subtrack
 EXPOSE 8000
-CMD ["uvicorn", "subtrack.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
+CMD ["uvicorn", "--factory", "subtrack.main:create_app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
