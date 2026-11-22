@@ -1,0 +1,12 @@
+base-url = "http://api:8000/api/v1"
+
+[generation]
+# The session cookie is required only while a passcode is set, and the test stack sets none.
+with-security-parameters = false
+
+[checks]
+ignored_auth.enabled = false
+
+[[operations]]
+exclude-operation-id = ["getHealth", "setClock", "resetData"]
+enabled = false

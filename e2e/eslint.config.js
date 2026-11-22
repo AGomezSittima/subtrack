@@ -51,6 +51,10 @@ export default defineConfig(
     extends: [playwright.configs["flat/recommended"]],
     rules: {
       "playwright/no-raw-locators": ["error", { allowed: ["html"] }],
+      "playwright/expect-expect": [
+        "warn",
+        { assertFunctionNames: ["expectProblem"] },
+      ],
     },
   },
   {

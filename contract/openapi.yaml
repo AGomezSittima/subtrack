@@ -939,8 +939,9 @@ paths:
       tags: [admin]
       summary: Set the clock (test mode only)
       description: |
-        **Test mode only; 404 otherwise.** Pins the backend clock to `now`. It stays there until set
-        again; "today" is the date of `now` in Europe/Madrid.
+        **Test mode only; 404 otherwise.** Not subject to the privacy lock. Pins the backend clock to
+        `now`. It stays there until set again; "today" is the date of `now` in Europe/Madrid.
+      security: []
       requestBody:
         required: true
         content:
@@ -952,8 +953,6 @@ paths:
           description: The clock is set.
         "400":
           $ref: "#/components/responses/MalformedRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "422":
@@ -964,12 +963,11 @@ paths:
       operationId: resetData
       tags: [admin]
       summary: Reset to a fresh database (test mode only)
-      description: "**Test mode only; 404 otherwise.** Restores a fresh database: empty tables, the seeded catalogue and default settings."
+      description: "**Test mode only; 404 otherwise.** Not subject to the privacy lock. Restores the database to its state right after migrations (no user data, default settings, the seeded catalogue) and unpins the clock."
+      security: []
       responses:
         "204":
           description: The database is fresh.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1079,13 +1077,13 @@ components:
       description: Calendar date, `YYYY-MM-DD`.
       type: string
       format: date
-      pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      pattern: "^(?:[1-9][0-9]{3}|0[1-9][0-9]{2}|00[1-9][0-9]|000[1-9])-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])$"
       examples: ["2026-12-01"]
     Timestamp:
       description: UTC instant with milliseconds and `Z`.
       type: string
       format: date-time
-      pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+      pattern: "^(?:[1-9][0-9]{3}|0[1-9][0-9]{2}|00[1-9][0-9]|000[1-9])-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z$"
       examples: ["2026-11-10T15:18:00.000Z"]
     Month:
       description: Calendar month, `YYYY-MM`.
@@ -1194,7 +1192,7 @@ components:
           description: Developer-facing English explanation of this occurrence. Never displayed.
           type: string
         errors:
-          description: Only with `validation-error`; one entry per failed check.
+          description: "Only with `validation-error`; at least one entry, each accurate. Every constraint failure is listed; for a structural failure (wrong type, unknown property) only the first may be."
           type: array
           minItems: 1
           items:

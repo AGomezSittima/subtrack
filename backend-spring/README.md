@@ -6,8 +6,8 @@ Java 25, Spring Boot 4.1.1, Spring Data JPA, Gradle (Kotlin DSL). It implements 
 
 `src/main/java/dev/subtrack/` uses the module names shared with the FastAPI backend: `api`, `service`, `billing`, `repository`, `persistence`, `scheduler`, `security`, `clock`, `config`, `cli`. See `backend-fastapi/README.md` for what each one holds. Every package is `@NullMarked` (JSpecify).
 
-- Dependency versions live in `gradle/libs.versions.toml`. Most come from the Spring Boot BOM; only Spotless, google-java-format and sqlite-jdbc are pinned there.
-- The database is SQLite via `sqlite-jdbc` and Hibernate's community `SQLiteDialect`. `ddl-auto=validate` and Flyway disabled: only the `migrate` Compose job changes the schema.
+- Dependency versions live in `gradle/libs.versions.toml`. Most come from the Spring Boot BOM; only Spotless, google-java-format, Checkstyle and sqlite-jdbc are pinned there.
+- The database is SQLite via `sqlite-jdbc` and Hibernate's community `SQLiteDialect`. `ddl-auto=validate` and Flyway disabled: only the `migrate` Compose job changes the schema. Tests migrate their databases with Flyway (`flyway-core`, test scope) from `db/migrations`.
 - Compiler warnings are errors (`-Xlint:all -Werror`).
 
 ## Commands
@@ -26,3 +26,4 @@ Always use the wrapper; no global Gradle is needed. You need JDK 25.
 | -------------------- | ---------------------------------------- | ------------------------------- |
 | `DB_PATH`            | `subs.db` (`/data/subs.db` in the image) | SQLite file                     |
 | `SUBTRACK_TEST_MODE` | `false`                                  | Enables the test-only endpoints |
+| `SUBTRACK_TEMPLATE_DB` | none (`/data/template.db` in the test overlay) | Migrated database that test mode resets from; required in test mode |

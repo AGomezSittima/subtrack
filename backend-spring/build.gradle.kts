@@ -25,13 +25,17 @@ dependencies {
   implementation(platform(SpringBootPlugin.BOM_COORDINATES))
   implementation(libs.spring.boot.starter.webmvc)
   implementation(libs.spring.boot.starter.data.jpa)
+  implementation(libs.spring.boot.starter.security)
+  implementation(libs.spring.boot.starter.validation)
   implementation(libs.hibernate.community.dialects)
   implementation(libs.jspecify)
-  runtimeOnly(libs.sqlite.jdbc)
+  implementation(libs.sqlite.jdbc)
 
   testImplementation(platform(SpringBootPlugin.BOM_COORDINATES))
   testImplementation(libs.spring.boot.starter.test)
   testImplementation(libs.spring.boot.starter.webmvc.test)
+  testImplementation(libs.spring.boot.starter.security.test)
+  testImplementation(libs.flyway.core)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 
@@ -63,6 +67,9 @@ tasks.test {
   val casesDir = rootDir.resolve("../contract/cases").normalize()
   inputs.dir(casesDir).withPathSensitivity(PathSensitivity.RELATIVE)
   systemProperty("subtrack.cases.dir", casesDir.absolutePath)
+  val migrationsDir = rootDir.resolve("../db/migrations").normalize()
+  inputs.dir(migrationsDir).withPathSensitivity(PathSensitivity.RELATIVE)
+  systemProperty("subtrack.migrations.dir", migrationsDir.absolutePath)
 }
 
 checkstyle {

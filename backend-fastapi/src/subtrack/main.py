@@ -1,18 +1,36 @@
-"""Application factory and ASGI entry point (`uvicorn subtrack.main:app`)."""
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from subtrack.api import health
+from subtrack.api.dependencies import build_container
+from subtrack.api.errors import install_error_handlers
+from subtrack.api.router import API_PREFIX, api_router
+from subtrack.config.settings import Settings
+from subtrack.security.middleware import LockMiddleware
 
-API_PREFIX = "/api/v1"
 
+def create_app(settings: Settings | None = None) -> FastAPI:
+    config = settings or Settings()
+    container = build_container(config)
 
-def create_app() -> FastAPI:
-    """Build the FastAPI app with every router mounted under /api/v1."""
-    # The contract lives in contract/openapi.yaml, so the generated docs are not served.
-    app = FastAPI(title="Subtrack API", openapi_url=None, docs_url=None, redoc_url=None)
-    app.include_router(health.router, prefix=API_PREFIX)
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        container.engine.dispose()
+
+    app = FastAPI(
+        title="Subtrack API",
+        openapi_url=None,
+        docs_url=None,
+        redoc_url=None,
+        redirect_slashes=False,
+        lifespan=lifespan,
+    )
+    app.state.container = container
+    install_error_handlers(app)
+    app.add_middleware(
+        LockMiddleware, enforcer=container.lock, prefix=API_PREFIX, test_mode=config.test_mode
+    )
+    app.include_router(api_router(test_mode=config.test_mode))
     return app
-
-
-app = create_app()

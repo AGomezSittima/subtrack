@@ -12,14 +12,14 @@ Python 3.14, FastAPI, Pydantic, uv. It implements `contract/openapi.yaml` under 
 | `service`     | Use cases, one transaction each                                     |
 | `billing`     | Pure date and money functions (no I/O, no framework imports)        |
 | `repository`  | Data access interfaces and implementations                          |
-| `persistence` | SQLAlchemy models, column types, engine setup                       |
+| `persistence` | SQLAlchemy models, ISO date and timestamp types, engine setup       |
 | `scheduler`   | The daily job (plain code) and its trigger                          |
-| `security`    | Privacy lock: passcode hashing, sessions, the router dependency     |
+| `security`    | Privacy lock: passcode hashing, sessions, the ASGI middleware       |
 | `clock`       | The only place that reads the current time                          |
 | `config`      | Typed settings from environment variables                           |
 | `cli`         | The `subtrack` command (e.g. `reset-passcode`)                      |
 
-`main.py` is the application factory (`uvicorn subtrack.main:app`).
+`main.py` is the application factory (`uvicorn --factory subtrack.main:create_app`); `api/dependencies.py` builds the concrete adapters once.
 
 ## Commands
 
@@ -39,3 +39,4 @@ uv run pytest              # unit tests
 | -------------------- | ---------------------------------------- | ------------------------------- |
 | `DB_PATH`            | `subs.db` (`/data/subs.db` in the image) | SQLite file                     |
 | `SUBTRACK_TEST_MODE` | `false`                                  | Enables the test-only endpoints |
+| `SUBTRACK_TEMPLATE_DB` | none (`/data/template.db` in the test overlay) | Migrated database that test mode resets from; required in test mode |

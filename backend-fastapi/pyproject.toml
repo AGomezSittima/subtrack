@@ -9,6 +9,7 @@ dependencies = [
     "pydantic==2.14.3",
     "pydantic-settings==2.16.2",
     "python-dateutil==4.0.0",
+    "sqlalchemy==2.1.9",
     "uvicorn==0.54.0",
 ]
 
@@ -39,8 +40,17 @@ select = [
 [tool.ruff.lint.pylint]
 max-args = 6
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime.now".msg = "Read the current time from the injected Clock."
+"datetime.datetime.utcnow".msg = "Read the current time from the injected Clock."
+"datetime.datetime.today".msg = "Read the current time from the injected Clock."
+"datetime.date.today".msg = "Read the current date from the injected Clock."
+"time.time".msg = "Read the current time from the injected Clock."
+"time.time_ns".msg = "Read the current time from the injected Clock."
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
+"src/subtrack/clock/system.py" = ["TID251"]
 
 [tool.mypy]
 strict = true

@@ -85,9 +85,13 @@ check-generated:
     pnpm --filter @subtrack/frontend run build
     git diff --exit-code -- contract/generated frontend/src/routeTree.gen.ts
 
-# Shared API suite against one backend (fastapi or spring), in test mode on a fresh database
+# Shared API suite and Schemathesis contract checks against one backend (fastapi or spring), in test mode
 test-api profile:
-    @just _with-test-stack {{ profile }} api
+    @just _with-test-stack {{ profile }} api "" contract
+
+# Schemathesis contract checks alone against one backend (fastapi or spring)
+test-contract profile:
+    @just _with-test-stack {{ profile }} "" "" contract
 
 # Full browser suite against both backends
 test-e2e: (test-e2e-profile "fastapi") (test-e2e-profile "spring")
@@ -105,7 +109,7 @@ e2e-setup:
     pnpm --filter @subtrack/e2e exec playwright install chromium
 
 [private]
-_with-test-stack profile project extra_profile="":
+_with-test-stack profile project extra_profile="" contract="":
     #!/usr/bin/env bash
     set -euo pipefail
     just _check-profile {{ profile }}
@@ -122,7 +126,12 @@ _with-test-stack profile project extra_profile="":
     }
     trap cleanup EXIT
     $compose up -d --build --wait
-    EXPECTED_BACKEND={{ profile }} pnpm --filter @subtrack/e2e exec playwright test --project {{ project }}
+    if [[ -n "{{ project }}" ]]; then
+        EXPECTED_BACKEND={{ profile }} pnpm --filter @subtrack/e2e exec playwright test --project {{ project }}
+    fi
+    if [[ -n "{{ contract }}" ]]; then
+        $compose run --rm schemathesis
+    fi
 
 [private]
 _check-profile profile:

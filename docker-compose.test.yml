@@ -1,10 +1,33 @@
-# Test overlay: enables test mode (settable clock, /admin/clock, /admin/reset).
 # Used by `just test-api` and `just test-e2e`, never for everyday use.
+x-test-mode: &test-mode
+  SUBTRACK_TEST_MODE: "true"
+  SUBTRACK_TEMPLATE_DB: /data/template.db
+
 services:
+  migrate:
+    command:
+      - >-
+        flyway -url=jdbc:sqlite:/data/subs.db -locations=filesystem:/flyway/sql migrate
+        && flyway -url=jdbc:sqlite:/data/template.db -locations=filesystem:/flyway/sql migrate
+        && chown -R 10001:10001 /data
+
   api-fastapi:
-    environment:
-      SUBTRACK_TEST_MODE: "true"
+    environment: *test-mode
 
   api-spring:
-    environment:
-      SUBTRACK_TEST_MODE: "true"
+    environment: *test-mode
+
+  schemathesis:
+    image: schemathesis/schemathesis:4.33.4
+    profiles: [contract]
+    working_dir: /tmp
+    volumes:
+      - ./contract:/contract:ro
+      - ./e2e/schemathesis:/config:ro
+    command:
+      [
+        "--config-file",
+        "/config/schemathesis.toml",
+        "run",
+        "/contract/openapi.yaml",
+      ]
