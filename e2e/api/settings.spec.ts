@@ -46,6 +46,9 @@ for (const zone of [
   "Etc/UTC",
   "Asia/Kolkata",
   "Etc/GMT+5",
+  // Legacy aliases that browsers still report as the device's zone.
+  "America/Buenos_Aires",
+  "Asia/Calcutta",
 ]) {
   test(`FR-53 FR-54 ${zone} is accepted as home and display time zone`, async ({
     api,

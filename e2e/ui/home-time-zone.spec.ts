@@ -1,7 +1,7 @@
 import { expect, test } from "../support/fixtures";
 import { setHomeZone } from "../support/settings";
 
-const ZONE = "America/Argentina/Buenos_Aires";
+const ZONE = "Pacific/Auckland";
 
 test.use({ timezoneId: ZONE });
 
