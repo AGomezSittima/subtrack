@@ -47,7 +47,7 @@ class BillingInputExceptionTest {
   void br28ATrialNeedsATrialEndDateForReminderPlanning() {
     assertThatThrownBy(() ->
             new ReminderSubscription(
-                1, "Spotify", MONTHLY, SubscriptionStatus.TRIAL, false, null, null, null))
+                1, "Spotify", MONTHLY, SubscriptionStatus.TRIAL, false, true, null, null, null))
         .hasFieldOrPropertyWithValue("code", BillingErrorCode.TRIAL_END_DATE_REQUIRED);
   }
 
