@@ -808,21 +808,22 @@ export interface components {
         TimeZoneName: string;
         /** @description Lead time in days before an event. */
         ReminderDays: number;
-        ServiceName: string;
-        /** @description At least one character that isn't Unicode whitespace. */
-        PlanName: string;
+        /** @description Not empty and no space, tab, line feed or carriage return at either end; stored exactly as sent. */
+        TrimmedText: string;
+        ServiceName: components["schemas"]["TrimmedText"];
+        PlanName: components["schemas"]["TrimmedText"];
         /**
          * @description Website domain, lowercase, used to load the logo.
          * @example spotify.com
          */
         Domain: string;
-        /** @description Free label such as `Visa ··4417`; not blank. */
-        PaymentMethodLabel: string;
+        /** @description Free label such as `Visa ··4417`. */
+        PaymentMethodLabel: components["schemas"]["TrimmedText"];
         WebUrl: string;
-        /** @description Not blank; send null for no note. */
-        Note: string;
-        /** @description Logo.dev publishable key, safe in client code; not blank. */
-        LogoDevToken: string;
+        /** @description May span several lines; send null for no note. */
+        Note: components["schemas"]["TrimmedText"];
+        /** @description Logo.dev publishable key, safe in client code. */
+        LogoDevToken: components["schemas"]["TrimmedText"];
         /** @description At least 6 letters or digits. */
         Passcode: string;
         /**
@@ -842,7 +843,7 @@ export interface components {
             status: number;
             /** @description Developer-facing English explanation of this occurrence. Never displayed. */
             detail?: string;
-            /** @description Only with `validation-error`; at least one entry, each accurate. Every constraint failure is listed; for a structural failure (wrong type, unknown property) only the first may be. */
+            /** @description Only with `validation-error`; one entry per invalid field, the first of its failures in `code` order. Every invalid field is listed, except that after a wrong type or unknown property only the first may be. */
             errors?: components["schemas"]["ValidationIssue"][];
             /** @description Only with `too-many-attempts`; when the next attempt is accepted. */
             retry_after?: components["schemas"]["Timestamp"];
@@ -858,10 +859,10 @@ export interface components {
              */
             pointer: string;
             /**
-             * @description What failed: `required`, `unknown_property`, `type`, `format` (date, timestamp or month), a JSON Schema keyword (`pattern`, `enum`, `minimum`, `maximum`, `min_length`, `max_length`), or `invalid` for a cross-field rule the operation describes.
+             * @description What failed, in precedence order: missing (`required`), wrong type (`unknown_property`, `type`), length (`min_length`, `max_length`), format (`format` for a date, timestamp or month, `pattern`, `enum`), range (`minimum`, `maximum`), then `invalid` for a rule the operation describes.
              * @enum {string}
              */
-            code: "required" | "unknown_property" | "type" | "format" | "pattern" | "enum" | "minimum" | "maximum" | "min_length" | "max_length" | "invalid";
+            code: "required" | "unknown_property" | "type" | "min_length" | "max_length" | "format" | "pattern" | "enum" | "minimum" | "maximum" | "invalid";
             /** @description The limit that failed, for the message (e.g. `{"minimum": 1}`). */
             params?: {
                 minimum?: number;
