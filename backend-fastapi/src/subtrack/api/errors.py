@@ -143,6 +143,8 @@ def _has_body(request: Request) -> bool:
 def _issue(error: ErrorDetails) -> ValidationIssue:
     location, *path = error["loc"]
     code = _ISSUE_CODES.get(error["type"], _fallback_code(error["type"]))
+    if code is IssueCode.ENUM and not isinstance(error.get("input"), str):
+        code = IssueCode.TYPE
     return ValidationIssue(
         location=_location(location),
         pointer="".join(f"/{_escape(part)}" for part in path),
