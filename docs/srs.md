@@ -86,7 +86,7 @@ IDs (FR-x) are meant to be referenced from tests and commits in both backends.
 ### Reminders and notifications
 
 - **FR-14** A global default reminder (N days before each renewal, default 3).
-- **FR-15** Per-subscription override: different lead days, or off.
+- **FR-15** Per-subscription reminders: a different lead time (0 to 365 days), or renewal reminders turned off. Turning them off keeps the chosen lead time for when they are turned back on.
 - **FR-16** Built-in events: trial ending (default 3 days before), yearly renewal (default 14 days before), payment still expected after its due date (overdue), cancelled subscription about to end (default 7 days before, and on the end date).
 - **FR-17** Notifications appear in an in-app list with an unread badge; mark one or all as read; open the related subscription or payment. Each notification has a severity (info, warning, critical) shown by color and icon.
 - **FR-18** Notifications exist only inside the app. There is no email, push or phone channel, by decision.
@@ -202,8 +202,8 @@ These rules are the shared core of both backends. Each one becomes a test case t
 
 ### Reminders
 
-- **BR-13** For each upcoming `expected` payment, a renewal notification fires on due\_date − reminder\_days (subscription override, else global default). -1 means off.
-- **BR-14** Yearly-or-longer intervals use `yearly_reminder_days` instead of the normal lead time and fire a yearly renewal notification. Yearly or longer means unit year (any count) or unit month with a count of 12 or more; intervals in days or weeks never count, however long. A per-subscription override (FR-15) replaces the lead time for yearly plans too. -1 turns off renewal and yearly renewal notifications, but not trial ending, ending or overdue ones.
+- **BR-13** For each upcoming `expected` payment of a subscription with reminders on, a renewal notification fires on due\_date − lead time: the subscription's `reminder_days` when set, else the global default. The global lead times are always 0 to 365 days and can't be turned off.
+- **BR-14** Yearly-or-longer intervals use `yearly_reminder_days` instead of the normal lead time and fire a yearly renewal notification. Yearly or longer means unit year (any count) or unit month with a count of 12 or more; intervals in days or weeks never count, however long. A per-subscription lead time (FR-15) replaces it for yearly plans too. Turning a subscription's reminders off stops its renewal and yearly renewal notifications, but not trial ending, ending or overdue ones.
 - **BR-15** Trial ending fires on trial\_end\_date − `trial_reminder_days`.
 - **BR-16** Overdue fires once, the day after due\_date, for a payment still `expected`.
 - **BR-17** Every notification has a dedupe key `type:subscription_id:trigger_date`. It uses the trigger date (the day the notification is due to fire), not the event date, so both ending notifications for the same ends\_on are kept (BR-23). Creating a notification whose key already exists is a no-op.
@@ -262,6 +262,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 | 2026-11-23 | Catalogue content and updates | 54 built-in services without prices, editable and hideable by the user; updates only add new services (FR-2, FR-47 to FR-52) |
 | 2026-11-23 | Time zones | "Today" from the backend in a home time zone; timestamps shown in a display time zone; no recalculation (BR-3, FR-53, FR-54) |
 | 2026-11-23 | Domain names | One subscription per domain, from the registrar's catalogue entry |
+| 2026-11-23 | Turning reminders off | A per-subscription on/off switch, separate from the lead time, replaces the -1 value; the global lead times can't be turned off (FR-15, BR-13, BR-14) |
 
 **Open questions**
 

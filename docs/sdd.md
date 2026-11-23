@@ -188,7 +188,8 @@ Every row belongs to the user once installed: built-ins can be edited and hidden
 | resumed\_on | date, nullable | last resume or reactivation; no payments are generated before it |
 | payment\_method | text, nullable | free label, e.g. "Visa ··4417" |
 | auto\_confirm | int 0/1 | default 0 |
-| reminder\_days | int, nullable | null = global default, -1 = off |
+| reminders\_enabled | int 0/1 | default 1; 0 turns off renewal and yearly renewal notifications only |
+| reminder\_days | int, nullable, CHECK 0 to 365 | renewal lead time; null = global default; kept while reminders are off |
 | website, cancel\_url, notes | text, nullable |  |
 | ends\_on | date, nullable | last day of access after cancelling |
 | archived\_at | timestamp, nullable | set = archived |
@@ -278,6 +279,7 @@ Besides the unique constraints above (`catalog_service.builtin_key`, `price_hist
 - `V4__catalogue_ownership_and_categories.sql` rebuilds `catalog_service` (adds `builtin_key`, `hidden` and the timestamps, makes `domain` nullable, drops the unique name) and `subscription` (the `gaming`, `news` and `education` categories), with the same procedure and foreign-key guard as V3. Existing catalogue rows become user entries, timestamped with the migration time.
 - **Built-in catalogue.** `db/catalog/catalog.json` lists the built-ins (key, name, domain, category, plans without prices), validated against `db/catalog/catalog.schema.json`. `just catalog-migration` (`db/scripts/catalog-migration.ts`) applies the existing migrations to an in-memory database, and writes `V<next>__catalog_builtins.sql` with one `INSERT … ON CONFLICT (builtin_key) DO NOTHING` per key not installed yet, timestamped with the migration time and without ids. `V5__catalog_builtins.sql` is the first, with 54 services. The file only grows: `just lint` (`db/scripts/check-catalog.ts`) fails when the JSON is invalid, when one of its keys isn't installed by the migrations, when an installed key is gone from it, or when an entry differs from what its migration inserted ([ADR 0007](adr/0007-catalogue-ownership.md)). Both scripts use Node's built-in `node:sqlite`.
 - `V6__time_zone_settings.sql` rebuilds `setting` to add `home_time_zone` and `display_time_zone` to the key list and the value checks, copying the existing rows. No table references `setting`, so the foreign-key guard isn't needed.
+- `V7__subscription_reminders_enabled.sql` rebuilds `subscription` to add `reminders_enabled` and narrow the `reminder_days` check to null or 0 to 365, replacing the -1 "off" value, with the same procedure and foreign-key guard as V3. A stored -1 becomes `reminders_enabled = 0` with `reminder_days` null.
 - `backend-fastapi/tests/integration/test_migrations.py` applies every migration to a fresh SQLite file (fixture `migrated_db` in `tests/conftest.py`, reused by repository tests) and checks the constraints.
 - Only the Flyway `migrate` container changes the schema. Spring runs with Flyway disabled and `ddl-auto=validate`; FastAPI never calls `create_all`. A mismatch fails at startup.
 - Every connection sets `PRAGMA foreign_keys = ON` (off by default in SQLite), `journal_mode = WAL` and a `busy_timeout` of 5 s. Each backend opens connections in one place: FastAPI `persistence/engine.py` (a SQLAlchemy `connect` event), Spring `persistence/DataSourceConfig` (sqlite-jdbc's `SQLiteConfig` under Hikari).
