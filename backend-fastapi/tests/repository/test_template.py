@@ -56,22 +56,22 @@ def test_ids_start_again_from_one(database: Path, template: Path, db: sqlite3.Co
 def test_the_template_catalogue_is_kept(
     database: Path, template: Path, db: sqlite3.Connection
 ) -> None:
-    netflix = {
-        "name": "Netflix",
-        "domain": "netflix.com",
+    hulu = {
+        "name": "Hulu",
+        "domain": "hulu.com",
         "category": "video",
         "created_at": TS,
         "updated_at": TS,
     }
     with database_connection(template) as fresh:
-        insert(fresh, "catalog_service", netflix)
+        insert(fresh, "catalog_service", hulu)
         seeded = rows(fresh, "catalog_service")
-    insert(db, "catalog_service", netflix | {"name": "Netflix (mine)"})
+    insert(db, "catalog_service", hulu | {"name": "Hulu (mine)"})
 
     restore(database, template)
 
     assert rows(db, "catalog_service") == seeded
-    assert [row[2] for row in seeded].count("Netflix") == 1
+    assert [row[2] for row in seeded].count("Hulu") == 1
 
 
 def test_tables_added_by_later_migrations_are_restored_too(

@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
@@ -5,9 +6,16 @@ from typing import Any
 
 import pytest
 
-from tests.support.migrations import apply_migrations, connect, migration_files
+from tests.support.migrations import (
+    MIGRATIONS_DIR,
+    apply_migrations,
+    connect,
+    migration_files,
+)
 
 TS = "2026-11-10T15:18:00.000Z"
+CATALOG_FILE = MIGRATIONS_DIR.parent / "catalog" / "catalog.json"
+SEED = 5
 
 type Row = dict[str, Any]
 
@@ -44,7 +52,7 @@ def catalog_row(**overrides: Any) -> Row:  # noqa: ANN401
 
 
 def builtin_row(**overrides: Any) -> Row:  # noqa: ANN401
-    return catalog_row(builtin_key="spotify") | overrides
+    return catalog_row(builtin_key="test-builtin") | overrides
 
 
 def subscription_row(**overrides: Any) -> Row:  # noqa: ANN401
@@ -143,10 +151,23 @@ def test_schema_has_the_seven_tables_all_strict(migrated_db: sqlite3.Connection)
     }
 
 
-def test_catalogue_seed_is_empty_until_the_catalogue_is_decided(
+def test_fr_52_the_seed_installs_every_builtin_without_prices_or_hiding(
     migrated_db: sqlite3.Connection,
 ) -> None:
-    assert count(migrated_db, "catalog_service") == 0
+    services = json.loads(CATALOG_FILE.read_text(encoding="utf-8"))["services"]
+
+    seeded = migrated_db.execute(
+        "SELECT builtin_key, name, domain, category, default_plans, hidden FROM catalog_service"
+        " ORDER BY id"
+    ).fetchall()
+
+    assert len(seeded) == len(services) == 54
+    assert [row[:4] for row in seeded] == [
+        (s["key"], s["name"], s["domain"], s["category"]) for s in services
+    ]
+    assert {row[5] for row in seeded} == {0}
+    for (_, _, _, _, plans, _), service in zip(seeded, services, strict=True):
+        assert json.loads(plans) == [plan | {"price_cents": None} for plan in service["plans"]]
 
 
 def test_settings_start_with_the_documented_defaults(migrated_db: sqlite3.Connection) -> None:
@@ -205,8 +226,9 @@ def test_a_valid_row_can_be_inserted_in_each_table(migrated_db: sqlite3.Connecti
         ("2026-11-10T15:00:00.000Z",),
     )
 
-    for table in ["catalog_service", "subscription", "price_history", "payment", "notification"]:
+    for table in ["subscription", "price_history", "payment", "notification"]:
         assert count(migrated_db, table) == 1
+    assert count(migrated_db, "catalog_service") == 55
     assert count(migrated_db, "session") == 1
 
 
@@ -240,8 +262,8 @@ def test_valid_subscription_variants_are_accepted(
     [
         pytest.param(builtin_row(), id="builtin"),
         pytest.param(builtin_row(hidden=1), id="hidden-builtin"),
-        pytest.param(builtin_row(builtin_key="1password"), id="key-starts-with-digit"),
-        pytest.param(builtin_row(builtin_key="cloudflare-registrar"), id="key-with-dash"),
+        pytest.param(builtin_row(builtin_key="9lives"), id="key-starts-with-digit"),
+        pytest.param(builtin_row(builtin_key="my-own-registrar"), id="key-with-dash"),
         pytest.param(catalog_row(domain=None), id="no-domain"),
         pytest.param(catalog_row(default_plans="[]"), id="no-plans"),
         *[
@@ -258,10 +280,9 @@ def test_fr_47_catalogue_names_may_repeat(migrated_db: sqlite3.Connection) -> No
     insert(migrated_db, "catalog_service", builtin_row())
     insert(migrated_db, "catalog_service", catalog_row())
 
-    assert migrated_db.execute("SELECT name FROM catalog_service").fetchall() == [
-        ("Spotify",),
-        ("Spotify",),
-    ]
+    assert migrated_db.execute(
+        "SELECT builtin_key FROM catalog_service WHERE name = 'Spotify' ORDER BY id"
+    ).fetchall() == [("spotify",), ("test-builtin",), (None,)]
 
 
 def test_a_builtin_key_is_unique(migrated_db: sqlite3.Connection) -> None:
@@ -690,5 +711,30 @@ def test_v4_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
         assert count(db, "payment") == 1
         columns = [row[1] for row in db.execute("PRAGMA table_info(catalog_service)")]
         assert "builtin_key" not in columns
+    finally:
+        db.close()
+
+
+def test_fr_52_running_the_seed_again_keeps_every_user_change(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=SEED - 1)
+        own_id = insert(db, "catalog_service", catalog_row(name="Spotify", domain=None))
+        apply_migrations(db, after=SEED - 1, up_to=SEED)
+        db.execute(
+            "UPDATE catalog_service SET name = 'Spotify Family', default_plans = ?"
+            " WHERE builtin_key = 'spotify'",
+            ('[{"plan":"Family","price_cents":1799,"interval_count":1,"interval_unit":"month"}]',),
+        )
+        db.execute("UPDATE catalog_service SET hidden = 1 WHERE builtin_key = 'netflix'")
+        before = db.execute("SELECT * FROM catalog_service ORDER BY id").fetchall()
+
+        apply_migrations(db, after=SEED - 1, up_to=SEED)
+
+        assert db.execute("SELECT * FROM catalog_service ORDER BY id").fetchall() == before
+        assert len(before) == 55
+        assert db.execute(
+            "SELECT builtin_key, name FROM catalog_service WHERE id = ?", (own_id,)
+        ).fetchall() == [(None, "Spotify")]
     finally:
         db.close()

@@ -102,15 +102,15 @@ class TemplateRepositoryTest {
     Path template = template();
     String insert =
         "INSERT INTO catalog_service (name, domain, category, created_at, updated_at)"
-            + " VALUES (?, 'netflix.com', 'video', ?, ?)";
-    TestDatabase.execute(template, insert, "Netflix", Rows.TS, Rows.TS);
-    TestDatabase.execute(database, insert, "Netflix (mine)", Rows.TS, Rows.TS);
+            + " VALUES (?, 'hulu.com', 'video', ?, ?)";
+    TestDatabase.execute(template, insert, "Hulu", Rows.TS, Rows.TS);
+    TestDatabase.execute(database, insert, "Hulu (mine)", Rows.TS, Rows.TS);
     List<List<@Nullable Object>> seeded = TestDatabase.table(template, "catalog_service");
 
     restore(database, template);
 
     assertThat(TestDatabase.table(database, "catalog_service")).isEqualTo(seeded);
-    assertThat(seeded).filteredOn(row -> "Netflix".equals(row.get(2))).hasSize(1);
+    assertThat(seeded).filteredOn(row -> "Hulu".equals(row.get(2))).hasSize(1);
   }
 
   @Test
