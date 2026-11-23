@@ -131,6 +131,10 @@ export default defineConfig(
     rules: { "no-restricted-globals": "off" },
   },
   {
+    files: ["src/lib/time/device-time-zone.ts"],
+    rules: { "no-restricted-properties": "off" },
+  },
+  {
     files: ["*.config.{js,ts}"],
     languageOptions: { globals: globals.node },
   },

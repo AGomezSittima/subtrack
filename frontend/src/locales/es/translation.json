@@ -10,5 +10,9 @@
       "fastapi": "FastAPI",
       "spring": "Spring Boot"
     }
+  },
+  "settings": {
+    "homeZoneNotice": "Zona horaria de casa establecida en {{zone}}. Puedes cambiarla en los ajustes.",
+    "dismissNotice": "Cerrar"
   }
 }
