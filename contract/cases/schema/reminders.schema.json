@@ -138,6 +138,7 @@
                     "interval",
                     "status",
                     "archived",
+                    "reminders_enabled",
                     "reminder_days"
                   ],
                   "properties": {
@@ -158,12 +159,16 @@
                     "archived": {
                       "type": "boolean"
                     },
+                    "reminders_enabled": {
+                      "description": "False stops renewal and yearly renewal notifications only.",
+                      "type": "boolean"
+                    },
                     "reminder_days": {
-                      "description": "Override; null = the default, -1 = off.",
+                      "description": "Lead time; null = the default.",
                       "anyOf": [
                         {
                           "type": "integer",
-                          "minimum": -1,
+                          "minimum": 0,
                           "maximum": 365
                         },
                         {

@@ -13,8 +13,6 @@ import org.jspecify.annotations.Nullable;
 
 public final class ReminderPlanner {
 
-  static final int REMINDER_OFF = -1;
-
   private static final Comparator<PlannedNotification> NOTIFICATION_ORDER =
       Comparator.comparing(PlannedNotification::triggerDate)
           .thenComparingLong(PlannedNotification::subscriptionId)
@@ -71,9 +69,8 @@ public final class ReminderPlanner {
     NotificationParams params =
         new NotificationParams(subscription.name(), payment.dueDate(), payment.expectedCents());
     List<PlannedNotification> triggers = new ArrayList<>();
-    int leadDays = renewalLeadDays(settings, subscription);
     if (subscription.status() != SubscriptionStatus.PAUSED
-        && leadDays != REMINDER_OFF
+        && subscription.remindersEnabled()
         && !payment.dueDate().isBefore(today)) {
       NotificationType renewalType =
           subscription.interval().isYearlyOrLonger()
@@ -83,7 +80,7 @@ public final class ReminderPlanner {
           notification(
               renewalType,
               subscription,
-              payment.dueDate().minusDays(leadDays),
+              payment.dueDate().minusDays(renewalLeadDays(settings, subscription)),
               payment.id(),
               params));
     }

@@ -7,8 +7,6 @@ from subtrack.billing.errors import BillingErrorCode, BillingInputError
 from subtrack.billing.interval import Interval, is_yearly_or_longer
 from subtrack.billing.payments import PaymentStatus, SubscriptionStatus
 
-REMINDER_OFF = -1
-
 
 class NotificationType(StrEnum):
     RENEWAL = "renewal"
@@ -48,6 +46,7 @@ class ReminderSubscription:
     interval: Interval
     status: SubscriptionStatus
     archived: bool
+    reminders_enabled: bool
     reminder_days: int | None = None
     trial_end_date: date | None = None
     ends_on: date | None = None
@@ -139,10 +138,9 @@ def _payment_triggers(
     params = NotificationParams(
         name=subscription.name, date=payment.due_date, amount_cents=payment.expected_cents
     )
-    lead_days = _renewal_lead_days(settings, subscription)
     if (
         subscription.status is not SubscriptionStatus.PAUSED
-        and lead_days != REMINDER_OFF
+        and subscription.reminders_enabled
         and payment.due_date >= today
     ):
         renewal_type = (
@@ -153,7 +151,7 @@ def _payment_triggers(
         yield _notification(
             renewal_type,
             subscription,
-            payment.due_date - timedelta(days=lead_days),
+            payment.due_date - timedelta(days=_renewal_lead_days(settings, subscription)),
             payment.id,
             params,
         )

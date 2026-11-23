@@ -976,8 +976,10 @@ export interface components {
             payment_method: components["schemas"]["PaymentMethodLabel"] | null;
             /** @description Expected payments become paid on their due date. */
             auto_confirm: boolean;
-            /** @description Renewal reminder lead time; null = the global default, -1 = off. */
-            reminder_days: number | null;
+            /** @description False stops renewal and yearly renewal notifications; others still fire. */
+            reminders_enabled: boolean;
+            /** @description Renewal reminder lead time; null = the global default. */
+            reminder_days: components["schemas"]["ReminderDays"] | null;
             website: components["schemas"]["WebUrl"] | null;
             cancel_url: components["schemas"]["WebUrl"] | null;
             notes: components["schemas"]["Note"] | null;
@@ -1020,8 +1022,10 @@ export interface components {
             payment_method?: components["schemas"]["PaymentMethodLabel"] | null;
             /** @default false */
             auto_confirm: boolean;
-            /** @description null = the global default, -1 = off. */
-            reminder_days?: number | null;
+            /** @default true */
+            reminders_enabled: boolean;
+            /** @description null = the global default. */
+            reminder_days?: components["schemas"]["ReminderDays"] | null;
             website?: components["schemas"]["WebUrl"] | null;
             cancel_url?: components["schemas"]["WebUrl"] | null;
             notes?: components["schemas"]["Note"] | null;
@@ -1045,7 +1049,8 @@ export interface components {
             ends_on?: components["schemas"]["Date"];
             payment_method?: components["schemas"]["PaymentMethodLabel"] | null;
             auto_confirm?: boolean;
-            reminder_days?: number | null;
+            reminders_enabled?: boolean;
+            reminder_days?: components["schemas"]["ReminderDays"] | null;
             website?: components["schemas"]["WebUrl"] | null;
             cancel_url?: components["schemas"]["WebUrl"] | null;
             notes?: components["schemas"]["Note"] | null;
@@ -1276,7 +1281,8 @@ export interface components {
             ends_on: components["schemas"]["Date"] | null;
             payment_method: components["schemas"]["PaymentMethodLabel"] | null;
             auto_confirm: boolean;
-            reminder_days: number | null;
+            reminders_enabled: boolean;
+            reminder_days: components["schemas"]["ReminderDays"] | null;
             website: components["schemas"]["WebUrl"] | null;
             cancel_url: components["schemas"]["WebUrl"] | null;
             notes: components["schemas"]["Note"] | null;

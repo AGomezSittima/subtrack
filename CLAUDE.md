@@ -64,6 +64,7 @@ If a recipe is missing, add it to the `justfile` rather than documenting a one-o
 - **Schema only via migrations.** New `V<n>__description.sql` in `db/migrations/`. Backends never create or alter tables (Spring `ddl-auto=validate`, no `create_all`).
 - **Dates.** Stored as ISO text: dates `YYYY-MM-DD`, timestamps UTC with milliseconds and `Z`. Billing dates are plain dates and are never converted. "Today" comes from the backend (the date in the home time zone, via `/health` in the frontend); timestamps are shown in the display time zone. In TypeScript use Temporal only, never `Date` (except inside `DatePicker`).
 - **Money.** Integer cents everywhere. Never floats. Round derived values once, at the end (BR-22, BR-26).
+- **No sentinel values.** A value never stands for something other than itself (no -1 for off, empty string for none, 0 for unlimited). Use an explicit field, null with one documented meaning, or an enum.
 - **Time is injected.** No direct `now()` / `LocalDate.now()` / `Temporal.Now` outside the `clock` module.
 - **External services behind interfaces** we own (logo provider, API client, clock, repositories). No vendor types outside adapters.
 - **No user-facing strings in code.** Everything through translation files (`en` and `es` together). The backend sends codes and parameters, never display text.

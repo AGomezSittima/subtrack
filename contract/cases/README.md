@@ -68,7 +68,7 @@ Implementations must follow these exactly, or the backends disagree by a cent.
   Existing payments keep their `ref`; new ones have none. `payments` is ordered by due date.
 
 - **Reminder planning (BR-13 to BR-17, BR-19, BR-23, BR-24, BR-27).** The input payments are those left after payment planning. The window runs from `last_run_date` (or `today` when it is null) to `today`, both inclusive, and only triggers inside it fire. Archived subscriptions get nothing.
-  - **Renewal.** For each `expected` payment of a subscription that isn't paused, with due date ≥ `today`: it fires on due date − lead time. The lead time is `reminder_days` when set, else `yearly_reminder_days` for yearly-or-longer intervals (unit `year`, or unit `month` with count ≥ 12) and `default_reminder_days` otherwise. -1 means none. Its type is `yearly_renewal` for yearly-or-longer intervals, otherwise `renewal`.
+  - **Renewal.** For each `expected` payment of a subscription that isn't paused and has `reminders_enabled`, with due date ≥ `today`: it fires on due date − lead time. The lead time is `reminder_days` when set, else `yearly_reminder_days` for yearly-or-longer intervals (unit `year`, or unit `month` with count ≥ 12) and `default_reminder_days` otherwise. Its type is `yearly_renewal` for yearly-or-longer intervals, otherwise `renewal`.
   - **Overdue.** For each `expected` payment, whatever the subscription's status: it fires on due date + 1.
   - **Trial ending.** For status `trial` with `trial_end_date` ≥ `today`: it fires on `trial_end_date` − `trial_reminder_days`.
   - **Ending.** For status `cancelled` with `ends_on` ≥ `today`: it fires on `ends_on` − `ending_reminder_days`, and again on `ends_on`.

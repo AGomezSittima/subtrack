@@ -37,6 +37,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -92,6 +93,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": 5
           },
           {
@@ -103,6 +105,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -143,9 +146,9 @@
       }
     },
     {
-      "id": "minus-one-turns-renewal-off",
+      "id": "reminders-off-stops-renewal",
       "rules": ["BR-13", "BR-14"],
-      "description": "An override of -1 turns renewal reminders off.",
+      "description": "A subscription with reminders off gets no renewal notification.",
       "input": {
         "last_run_date": "2026-11-21",
         "today": "2026-11-21",
@@ -165,7 +168,8 @@
             },
             "status": "active",
             "archived": false,
-            "reminder_days": -1
+            "reminders_enabled": false,
+            "reminder_days": null
           }
         ],
         "payments": [
@@ -184,9 +188,9 @@
       }
     },
     {
-      "id": "minus-one-keeps-trial-ending-ending-and-overdue",
+      "id": "reminders-off-keeps-trial-ending-ending-and-overdue",
       "rules": ["BR-14", "BR-15", "BR-16", "BR-23"],
-      "description": "-1 turns off only renewal reminders: a trial still gets its trial-ending notification, a cancelled subscription its ending notification, and an unpaid payment its overdue notification.",
+      "description": "Reminders off stops only renewal notifications: a trial still gets its trial-ending notification, a cancelled subscription its ending notification, and an unpaid payment its overdue notification.",
       "input": {
         "last_run_date": "2026-11-21",
         "today": "2026-11-21",
@@ -206,7 +210,8 @@
             },
             "status": "trial",
             "archived": false,
-            "reminder_days": -1,
+            "reminders_enabled": false,
+            "reminder_days": null,
             "trial_end_date": "2026-11-24"
           },
           {
@@ -218,7 +223,8 @@
             },
             "status": "cancelled",
             "archived": false,
-            "reminder_days": -1,
+            "reminders_enabled": false,
+            "reminder_days": null,
             "ends_on": "2026-11-28"
           },
           {
@@ -230,7 +236,8 @@
             },
             "status": "active",
             "archived": false,
-            "reminder_days": -1
+            "reminders_enabled": false,
+            "reminder_days": null
           }
         ],
         "payments": [
@@ -309,6 +316,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": 0
           }
         ],
@@ -364,6 +372,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -405,6 +414,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -416,6 +426,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -478,6 +489,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -533,6 +545,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -588,6 +601,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -629,6 +643,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -684,6 +699,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": 30
           }
         ],
@@ -717,9 +733,9 @@
       }
     },
     {
-      "id": "minus-one-turns-yearly-renewal-off",
+      "id": "reminders-off-stops-yearly-renewal",
       "rules": ["BR-14"],
-      "description": "An override of -1 turns yearly renewal reminders off as well.",
+      "description": "A yearly plan with reminders off gets no yearly renewal notification, even with its own 14-day lead time kept.",
       "input": {
         "last_run_date": "2026-11-21",
         "today": "2026-11-21",
@@ -739,7 +755,8 @@
             },
             "status": "active",
             "archived": false,
-            "reminder_days": -1
+            "reminders_enabled": false,
+            "reminder_days": 14
           }
         ],
         "payments": [
@@ -780,6 +797,7 @@
             },
             "status": "trial",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "trial_end_date": "2026-11-24"
           }
@@ -827,6 +845,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "trial_end_date": "2026-11-24"
           }
@@ -861,6 +880,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -872,6 +892,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -934,6 +955,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -975,6 +997,7 @@
             },
             "status": "cancelled",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "ends_on": "2026-11-21"
           }
@@ -1034,6 +1057,7 @@
             },
             "status": "cancelled",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "ends_on": "2026-11-21"
           }
@@ -1081,6 +1105,7 @@
             },
             "status": "cancelled",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "ends_on": "2026-11-21"
           }
@@ -1128,6 +1153,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -1169,6 +1195,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -1180,6 +1207,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -1191,6 +1219,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -1202,6 +1231,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -1213,6 +1243,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -1335,6 +1366,7 @@
             },
             "status": "trial",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "trial_end_date": "2026-11-21"
           },
@@ -1347,6 +1379,7 @@
             },
             "status": "cancelled",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "ends_on": "2026-11-21"
           }
@@ -1406,6 +1439,7 @@
             },
             "status": "cancelled",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null,
             "ends_on": "2026-11-19"
           }
@@ -1440,6 +1474,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -1451,6 +1486,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -1462,6 +1498,7 @@
             },
             "status": "active",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -1531,6 +1568,7 @@
             },
             "status": "paused",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": 0
           },
           {
@@ -1542,6 +1580,7 @@
             },
             "status": "paused",
             "archived": false,
+            "reminders_enabled": true,
             "reminder_days": null
           }
         ],
@@ -1604,6 +1643,7 @@
             },
             "status": "active",
             "archived": true,
+            "reminders_enabled": true,
             "reminder_days": null
           },
           {
@@ -1615,6 +1655,7 @@
             },
             "status": "trial",
             "archived": true,
+            "reminders_enabled": true,
             "reminder_days": null,
             "trial_end_date": "2026-11-24"
           },
@@ -1627,6 +1668,7 @@
             },
             "status": "cancelled",
             "archived": true,
+            "reminders_enabled": true,
             "reminder_days": null,
             "ends_on": "2026-11-28"
           }

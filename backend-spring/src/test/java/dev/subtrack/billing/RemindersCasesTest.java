@@ -63,6 +63,7 @@ class RemindersCasesTest {
         interval(value.get("interval")),
         enumValue(SubscriptionStatus.class, value.get("status")),
         value.get("archived").asBoolean(),
+        value.get("reminders_enabled").asBoolean(),
         reminderDays.isNull() ? null : reminderDays.asInt(),
         optionalDate(value, "trial_end_date"),
         optionalDate(value, "ends_on"));

@@ -206,7 +206,8 @@ def test_a_valid_row_can_be_inserted_in_each_table(migrated_db: sqlite3.Connecti
             trial_end_date="2026-01-30",
             payment_method="Visa ··4417",
             auto_confirm=1,
-            reminder_days=-1,
+            reminders_enabled=0,
+            reminder_days=365,
             website="https://spotify.com",
             cancel_url="https://spotify.com/account",
             notes="Family plan later",
@@ -380,7 +381,14 @@ INVALID_ROWS: list[Any] = [
     pytest.param("payment", lambda s: payment_row(s, expected_cents=-1), id="expected-neg"),
     pytest.param("payment", lambda s: paid_payment_row(s, paid_cents=-1), id="paid-neg"),
     pytest.param("subscription", lambda _s: subscription_row(interval_count=0), id="count-zero"),
-    pytest.param("subscription", lambda _s: subscription_row(reminder_days=-2), id="reminder"),
+    pytest.param("subscription", lambda _s: subscription_row(reminder_days=-1), id="reminder-neg"),
+    pytest.param("subscription", lambda _s: subscription_row(reminder_days=366), id="reminder-max"),
+    pytest.param(
+        "subscription", lambda _s: subscription_row(reminders_enabled=2), id="reminders-enabled"
+    ),
+    pytest.param(
+        "subscription", lambda _s: subscription_row(reminders_enabled=None), id="reminders-null"
+    ),
     pytest.param("catalog_service", lambda _s: catalog_row(default_plans="{}"), id="plans-obj"),
     pytest.param("notification", lambda s: notification_row(s, params="[]"), id="params-array"),
     pytest.param("notification", lambda s: notification_row(s, params="{name"), id="params-json"),
@@ -746,6 +754,64 @@ def test_v4_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
         assert count(db, "payment") == 1
         columns = [row[1] for row in db.execute("PRAGMA table_info(catalog_service)")]
         assert "builtin_key" not in columns
+    finally:
+        db.close()
+
+
+def test_v7_turns_minus_one_into_reminders_off(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=6)
+        off_id = insert(db, "subscription", subscription_row(reminder_days=-1))
+        lead_id = insert(db, "subscription", subscription_row(reminder_days=5))
+        default_id = insert(db, "subscription", subscription_row(reminder_days=None))
+        insert(db, "price_history", price_row(off_id))
+        payment_id = insert(db, "payment", paid_payment_row(off_id))
+        insert(db, "notification", notification_row(off_id, payment_id=payment_id))
+        other_columns = [
+            row[1]
+            for row in db.execute("PRAGMA table_info(subscription)")
+            if row[1] != "reminder_days"
+        ]
+        select_others = f"SELECT {', '.join(other_columns)} FROM subscription ORDER BY id"  # noqa: S608
+        before = db.execute(select_others).fetchall()
+
+        apply_migrations(db, after=6, up_to=7)
+
+        assert db.execute(
+            "SELECT id, reminders_enabled, reminder_days FROM subscription ORDER BY id"
+        ).fetchall() == [(off_id, 0, None), (lead_id, 1, 5), (default_id, 1, None)]
+        assert db.execute(select_others).fetchall() == before
+        assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert db.execute(
+            "SELECT 1 FROM sqlite_schema WHERE type = 'index'"
+            " AND name = 'subscription_catalog_service_idx' AND tbl_name = 'subscription'"
+        ).fetchall() == [(1,)]
+        assert insert(db, "subscription", subscription_row()) > default_id
+        assert db.execute(
+            "SELECT reminders_enabled FROM subscription ORDER BY id DESC LIMIT 1"
+        ).fetchall() == [(1,)]
+
+        db.execute("DELETE FROM subscription WHERE id = ?", (off_id,))
+        assert count(db, "price_history") == 0
+        assert count(db, "payment") == 0
+    finally:
+        db.close()
+
+
+def test_v7_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=6)
+        sub_id = insert(db, "subscription", subscription_row(reminder_days=-1))
+        insert(db, "payment", payment_row(sub_id))
+
+        with pytest.raises(sqlite3.IntegrityError):
+            apply_migrations(db, after=6, up_to=7, foreign_keys=True)
+
+        assert count(db, "payment") == 1
+        columns = [row[1] for row in db.execute("PRAGMA table_info(subscription)")]
+        assert "reminders_enabled" not in columns
     finally:
         db.close()
 

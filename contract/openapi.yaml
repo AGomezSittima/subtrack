@@ -1572,6 +1572,7 @@ components:
         - ends_on
         - payment_method
         - auto_confirm
+        - reminders_enabled
         - reminder_days
         - website
         - cancel_url
@@ -1644,12 +1645,13 @@ components:
         auto_confirm:
           description: Expected payments become paid on their due date.
           type: boolean
+        reminders_enabled:
+          description: False stops renewal and yearly renewal notifications; others still fire.
+          type: boolean
         reminder_days:
-          description: Renewal reminder lead time; null = the global default, -1 = off.
+          description: Renewal reminder lead time; null = the global default.
           anyOf:
-            - type: integer
-              minimum: -1
-              maximum: 365
+            - $ref: "#/components/schemas/ReminderDays"
             - type: "null"
         website:
           anyOf:
@@ -1763,12 +1765,13 @@ components:
         auto_confirm:
           type: boolean
           default: false
+        reminders_enabled:
+          type: boolean
+          default: true
         reminder_days:
-          description: null = the global default, -1 = off.
+          description: null = the global default.
           anyOf:
-            - type: integer
-              minimum: -1
-              maximum: 365
+            - $ref: "#/components/schemas/ReminderDays"
             - type: "null"
         website:
           anyOf:
@@ -1823,11 +1826,11 @@ components:
             - type: "null"
         auto_confirm:
           type: boolean
+        reminders_enabled:
+          type: boolean
         reminder_days:
           anyOf:
-            - type: integer
-              minimum: -1
-              maximum: 365
+            - $ref: "#/components/schemas/ReminderDays"
             - type: "null"
         website:
           anyOf:
@@ -2375,6 +2378,7 @@ components:
         - ends_on
         - payment_method
         - auto_confirm
+        - reminders_enabled
         - reminder_days
         - website
         - cancel_url
@@ -2434,11 +2438,11 @@ components:
             - type: "null"
         auto_confirm:
           type: boolean
+        reminders_enabled:
+          type: boolean
         reminder_days:
           anyOf:
-            - type: integer
-              minimum: -1
-              maximum: 365
+            - $ref: "#/components/schemas/ReminderDays"
             - type: "null"
         website:
           anyOf:

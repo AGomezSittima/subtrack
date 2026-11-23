@@ -18,6 +18,7 @@ When two principles pull apart, simplicity wins: this is a small single-user app
 | KISS | Pick the simplest thing that meets the requirement: SQLite over Postgres, polling over websockets, one container per role. |
 | DRY | Each fact has one source: the OpenAPI contract for types, the SQL migrations for the schema, `@theme` tokens for design values. Duplicate code is merged on the third copy, not the second (rule of three). |
 | YAGNI | No hooks for features the SRS doesn't list. Out-of-scope items stay out until they move into scope. |
+| No sentinel values | A value never stands for something other than itself (no -1 for off, empty string for none, 0 for unlimited). Use an explicit field, null with one documented meaning, or an enum. |
 
 ## Comments
 

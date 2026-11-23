@@ -9,6 +9,7 @@ public record ReminderSubscription(
     Interval interval,
     SubscriptionStatus status,
     boolean archived,
+    boolean remindersEnabled,
     @Nullable Integer reminderDays,
     @Nullable LocalDate trialEndDate,
     @Nullable LocalDate endsOn) {
