@@ -1,8 +1,8 @@
 import { deviceTimeZone } from "./device-time-zone";
 
-/** `device` follows the browser; anything else is an IANA name. */
-export type DisplayTimeZone = "device" | (string & {});
+/** An IANA name, or null to follow the browser. */
+export type DisplayTimeZone = string | null;
 
 export function resolveDisplayTimeZone(zone: DisplayTimeZone): string {
-  return zone === "device" ? deviceTimeZone() : zone;
+  return zone ?? deviceTimeZone();
 }

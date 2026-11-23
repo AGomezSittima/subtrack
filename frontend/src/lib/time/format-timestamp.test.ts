@@ -36,13 +36,13 @@ describe("formatTimestamp", () => {
     expect(formatTimestamp(second, "Europe/Madrid", "en", TIME)).toBe("02:30");
   });
 
-  it("follows the device when the display zone is device", () => {
+  it("follows the device when no display zone is set", () => {
     const instant = Temporal.Instant.from("2026-11-23T23:30:00Z");
 
     vi.stubEnv("TZ", "Asia/Tokyo");
-    expect(formatTimestamp(instant, "device", "en", TIME)).toBe("08:30");
+    expect(formatTimestamp(instant, null, "en", TIME)).toBe("08:30");
 
     vi.stubEnv("TZ", "America/Argentina/Buenos_Aires");
-    expect(formatTimestamp(instant, "device", "en", TIME)).toBe("20:30");
+    expect(formatTimestamp(instant, null, "en", TIME)).toBe("20:30");
   });
 });
