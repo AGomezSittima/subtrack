@@ -10,16 +10,8 @@ public class TimeZoneNameValidator implements ConstraintValidator<TimeZoneName, 
 
   static final String SHAPE = "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$";
   static final int MAX_LENGTH = 64;
-  static final String DEVICE = "device";
 
   private static final Pattern SHAPE_PATTERN = Pattern.compile(SHAPE);
-
-  private boolean allowDevice;
-
-  @Override
-  public void initialize(TimeZoneName constraint) {
-    allowDevice = constraint.allowDevice();
-  }
 
   @Override
   public boolean isValid(@Nullable String value, ConstraintValidatorContext context) {
@@ -28,6 +20,6 @@ public class TimeZoneNameValidator implements ConstraintValidator<TimeZoneName, 
         || !SHAPE_PATTERN.matcher(value).matches()) {
       return true;
     }
-    return (allowDevice && DEVICE.equals(value)) || TimeZones.isKnown(value);
+    return TimeZones.isKnown(value);
   }
 }

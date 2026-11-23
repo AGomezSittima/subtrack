@@ -104,7 +104,7 @@ public class SettingsService {
         integer(rows, SettingKey.WEEK_START),
         text(rows, SettingKey.LOCK_POLICY),
         rows.get(SettingKey.HOME_TIME_ZONE).getValue(),
-        text(rows, SettingKey.DISPLAY_TIME_ZONE));
+        rows.get(SettingKey.DISPLAY_TIME_ZONE).getValue());
   }
 
   private static int integer(Map<SettingKey, SettingEntity> rows, SettingKey key) {

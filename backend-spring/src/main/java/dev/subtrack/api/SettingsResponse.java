@@ -17,7 +17,7 @@ public record SettingsResponse(
     int weekStart,
     String lockPolicy,
     @Nullable String homeTimeZone,
-    String displayTimeZone) {
+    @Nullable String displayTimeZone) {
 
   static SettingsResponse of(UserSettings settings) {
     return new SettingsResponse(
