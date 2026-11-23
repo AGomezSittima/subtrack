@@ -6,10 +6,9 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 from pydantic_core import PydanticCustomError
 
 from subtrack.api.dependencies import settings_service
+from subtrack.api.types import NonBlankText
 from subtrack.clock.zones import zone_names
 from subtrack.service.settings import SettingsService, UserSettings
-
-DEVICE = "device"
 
 
 def _known_zone(name: str) -> str:
@@ -18,16 +17,11 @@ def _known_zone(name: str) -> str:
     return name
 
 
-def _display_zone(name: str) -> str:
-    return name if name == DEVICE else _known_zone(name)
-
-
 type ZoneShape = Annotated[
     str,
     Field(max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"),
 ]
-type HomeTimeZone = Annotated[ZoneShape, AfterValidator(_known_zone)]
-type DisplayTimeZone = Annotated[ZoneShape, AfterValidator(_display_zone)]
+type TimeZoneName = Annotated[ZoneShape, AfterValidator(_known_zone)]
 type ReminderDays = Annotated[int, Field(ge=0, le=365)]
 
 
@@ -39,15 +33,15 @@ class SettingsBody(BaseModel):
     yearly_reminder_days: ReminderDays
     ending_reminder_days: ReminderDays
     payment_horizon_days: Annotated[int, Field(ge=1, le=366)]
-    logo_dev_token: Annotated[str, Field(min_length=1, max_length=200)] | None
+    logo_dev_token: Annotated[NonBlankText, Field(max_length=200)] | None
     locale: Literal["en", "es"] | None
     theme: Literal["system", "light", "dark"]
     font_size: Literal["sm", "md", "lg"]
     reduced_motion: Literal["system", "always"]
     week_start: Annotated[int, Field(ge=1, le=7)]
     lock_policy: Literal["on_open", "idle_5", "idle_15", "idle_30", "idle_60", "manual"]
-    home_time_zone: HomeTimeZone | None
-    display_time_zone: DisplayTimeZone
+    home_time_zone: TimeZoneName | None
+    display_time_zone: TimeZoneName | None
 
 
 class SettingsResponse(BaseModel):
@@ -66,7 +60,7 @@ class SettingsResponse(BaseModel):
     week_start: int
     lock_policy: str
     home_time_zone: str | None
-    display_time_zone: str
+    display_time_zone: str | None
 
 
 router = APIRouter(prefix="/settings", tags=["settings"])

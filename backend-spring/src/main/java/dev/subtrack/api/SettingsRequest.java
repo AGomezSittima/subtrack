@@ -37,7 +37,8 @@ final class SettingsRequest {
   @JsonSetter(nulls = Nulls.FAIL)
   @NotNull @Min(1) @Max(366) private @Nullable BigInteger paymentHorizonDays;
 
-  @JsonProperty @NotNull private @Nullable Optional<@MinCodePoints(1) @MaxCodePoints(200) String> logoDevToken;
+  @JsonProperty @NotNull private @Nullable Optional<@MaxCodePoints(200) @NonBlankText(maxCodePoints = 200) String>
+      logoDevToken;
 
   @JsonProperty @NotNull private @Nullable Optional<@OneOf(CodeSet.LOCALE) String> locale;
 
@@ -69,11 +70,9 @@ final class SettingsRequest {
           @Pattern(regexp = TimeZoneNameValidator.SHAPE) @MaxCodePoints(TimeZoneNameValidator.MAX_LENGTH) @TimeZoneName String>
       homeTimeZone;
 
-  @JsonProperty
-  @JsonSetter(nulls = Nulls.FAIL)
-  @NotNull @Pattern(regexp = TimeZoneNameValidator.SHAPE) @MaxCodePoints(TimeZoneNameValidator.MAX_LENGTH)
-  @TimeZoneName(allowDevice = true)
-  private @Nullable String displayTimeZone;
+  @JsonProperty @NotNull private @Nullable Optional<
+          @Pattern(regexp = TimeZoneNameValidator.SHAPE) @MaxCodePoints(TimeZoneNameValidator.MAX_LENGTH) @TimeZoneName String>
+      displayTimeZone;
 
   UserSettings settings() {
     return new UserSettings(
@@ -90,6 +89,6 @@ final class SettingsRequest {
         Objects.requireNonNull(weekStart).intValueExact(),
         Objects.requireNonNull(lockPolicy),
         Objects.requireNonNull(homeTimeZone).orElse(null),
-        Objects.requireNonNull(displayTimeZone));
+        Objects.requireNonNull(displayTimeZone).orElse(null));
   }
 }

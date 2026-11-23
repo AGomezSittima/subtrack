@@ -13,8 +13,6 @@ import java.lang.annotation.Target;
 @Constraint(validatedBy = TimeZoneNameValidator.class)
 public @interface TimeZoneName {
 
-  boolean allowDevice() default false;
-
   String message() default "must be a known IANA time zone";
 
   Class<?>[] groups() default {};

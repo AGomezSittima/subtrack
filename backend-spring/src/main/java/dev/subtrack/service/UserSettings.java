@@ -16,4 +16,4 @@ public record UserSettings(
     int weekStart,
     String lockPolicy,
     @Nullable String homeTimeZone,
-    String displayTimeZone) {}
+    @Nullable String displayTimeZone) {}

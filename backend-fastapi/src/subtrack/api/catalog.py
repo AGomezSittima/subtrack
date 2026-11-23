@@ -5,7 +5,7 @@ from pydantic import MISSING, BaseModel, ConfigDict, Field
 
 from subtrack.api.dependencies import catalog_service
 from subtrack.api.parameters import INT64_MAX, QueryParameters, path_id
-from subtrack.api.types import ApiTimestamp
+from subtrack.api.types import ApiTimestamp, NonBlankText
 from subtrack.persistence.types import StoredPlan
 from subtrack.service.catalog import (
     UNSET,
@@ -30,7 +30,7 @@ type Category = Literal[
 ]
 type IntervalUnit = Literal["day", "week", "month", "year"]
 type ServiceName = Annotated[str, Field(min_length=1, max_length=200)]
-type PlanName = Annotated[str, Field(min_length=1, max_length=200)]
+type PlanName = Annotated[NonBlankText, Field(max_length=200)]
 type Domain = Annotated[
     str,
     Field(

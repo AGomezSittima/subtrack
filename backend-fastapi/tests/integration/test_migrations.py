@@ -16,6 +16,7 @@ from tests.support.migrations import (
 TS = "2026-11-10T15:18:00.000Z"
 CATALOG_FILE = MIGRATIONS_DIR.parent / "catalog" / "catalog.json"
 SEED = 5
+BLANKS = ["", " ", "\t\n\r", "\u00a0", "\u2028\u3000\u205f"]
 
 type Row = dict[str, Any]
 
@@ -191,7 +192,7 @@ def test_settings_start_with_the_documented_defaults(migrated_db: sqlite3.Connec
         "failed_attempts": "0",
         "retry_after": None,
         "home_time_zone": None,
-        "display_time_zone": "device",
+        "display_time_zone": None,
     }
 
 
@@ -414,6 +415,29 @@ INVALID_ROWS: list[Any] = [
         id="expected-with-paid-fields",
     ),
     pytest.param("payment", lambda s: payment_row(s + 999), id="payment-unknown-subscription"),
+    *(
+        pytest.param(
+            "subscription",
+            lambda _s, c=column, v=value: subscription_row(**{c: v}),
+            id=f"{column}-blank-{value!r}",
+        )
+        for column in ["plan_name", "payment_method", "website", "cancel_url", "notes"]
+        for value in BLANKS
+    ),
+    *(
+        pytest.param(
+            "payment", lambda s, v=value: payment_row(s, note=v), id=f"note-blank-{value!r}"
+        )
+        for value in BLANKS
+    ),
+    *(
+        pytest.param(
+            "catalog_service",
+            lambda _s, v=value: catalog_row(domain=v),
+            id=f"domain-blank-{value!r}",
+        )
+        for value in BLANKS
+    ),
 ]
 
 
@@ -460,9 +484,10 @@ def test_br_28_a_subscription_becomes_or_stays_a_trial_only_with_a_trial_end_dat
         ("failed_attempts", ""),
         ("passcode_hash", "hunter22"),
         ("logo_dev_token", ""),
+        ("logo_dev_token", " \t\n"),
+        ("logo_dev_token", "\u00a0\u3000"),
         ("last_scheduler_run", "2026-11-10T15:18:00Z"),
         ("retry_after", "2026-11-10"),
-        ("home_time_zone", "device"),
         ("home_time_zone", ""),
         ("home_time_zone", "../etc/passwd"),
         ("home_time_zone", "Europe/ Madrid"),
@@ -470,7 +495,6 @@ def test_br_28_a_subscription_becomes_or_stays_a_trial_only_with_a_trial_end_dat
         ("home_time_zone", "Europe/"),
         ("home_time_zone", "+01:00"),
         ("home_time_zone", "A" * 65),
-        ("display_time_zone", None),
         ("display_time_zone", ""),
         ("display_time_zone", "Europe/Madrid "),
     ],
@@ -490,7 +514,7 @@ def test_invalid_setting_values_are_rejected(
         ("home_time_zone", "America/Argentina/Buenos_Aires"),
         ("home_time_zone", "Etc/GMT+5"),
         ("home_time_zone", "America/Port-au-Prince"),
-        ("display_time_zone", "device"),
+        ("display_time_zone", None),
         ("display_time_zone", "Etc/UTC"),
     ],
 )
@@ -812,6 +836,181 @@ def test_v7_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
         assert count(db, "payment") == 1
         columns = [row[1] for row in db.execute("PRAGMA table_info(subscription)")]
         assert "reminders_enabled" not in columns
+    finally:
+        db.close()
+
+
+def test_v8_turns_the_device_display_zone_and_a_blank_logo_token_into_null(
+    tmp_path: Path,
+) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=7)
+        db.execute("UPDATE setting SET value = ' ' WHERE key = 'logo_dev_token'")
+        db.execute("UPDATE setting SET value = 'Europe/Madrid' WHERE key = 'home_time_zone'")
+        others = (
+            "SELECT id, key, value, updated_at FROM setting WHERE key NOT IN (?, ?) ORDER BY id"
+        )
+        hidden = ("display_time_zone", "logo_dev_token")
+        before = db.execute(others, hidden).fetchall()
+
+        apply_migrations(db, after=7, up_to=8)
+
+        assert db.execute(
+            "SELECT key, value FROM setting WHERE key IN (?, ?) ORDER BY key", hidden
+        ).fetchall() == [("display_time_zone", None), ("logo_dev_token", None)]
+        assert db.execute(others, hidden).fetchall() == before
+    finally:
+        db.close()
+
+
+def test_v8_keeps_a_pinned_display_zone_and_a_real_logo_token(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=7)
+        db.execute("UPDATE setting SET value = 'Asia/Tokyo' WHERE key = 'display_time_zone'")
+        db.execute("UPDATE setting SET value = ' pk_abc ' WHERE key = 'logo_dev_token'")
+
+        apply_migrations(db, after=7, up_to=8)
+
+        assert db.execute(
+            "SELECT key, value FROM setting WHERE key IN (?, ?) ORDER BY key",
+            ("display_time_zone", "logo_dev_token"),
+        ).fetchall() == [("display_time_zone", "Asia/Tokyo"), ("logo_dev_token", " pk_abc ")]
+    finally:
+        db.close()
+
+
+def test_v9_turns_blank_optional_text_into_null(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=8)
+        blank_catalog = insert(db, "catalog_service", catalog_row(domain=" "))
+        kept_catalog = insert(
+            db, "catalog_service", catalog_row(name="Netflix", domain="netflix.com")
+        )
+        text = ["plan_name", "payment_method", "website", "cancel_url", "notes"]
+        blank_sub = insert(
+            db,
+            "subscription",
+            subscription_row(
+                catalog_service_id=blank_catalog,
+                plan_name="",
+                payment_method="\u00a0",
+                website="\t",
+                cancel_url="\n",
+                notes=" \u3000 ",
+            ),
+        )
+        kept_sub = insert(
+            db,
+            "subscription",
+            subscription_row(
+                catalog_service_id=kept_catalog,
+                plan_name=" Family ",
+                payment_method="Visa ··4417",
+                website="https://netflix.com",
+                cancel_url="https://netflix.com/cancel",
+                notes="  Shared with family\n",
+            ),
+        )
+        insert(db, "price_history", price_row(blank_sub))
+        blank_payment = insert(db, "payment", payment_row(blank_sub, note="  "))
+        kept_payment = insert(db, "payment", paid_payment_row(kept_sub, note=" late "))
+        insert(db, "notification", notification_row(blank_sub, payment_id=blank_payment))
+        sub_others = [
+            row[1] for row in db.execute("PRAGMA table_info(subscription)") if row[1] not in text
+        ]
+        select_subs = f"SELECT {', '.join(sub_others)} FROM subscription ORDER BY id"  # noqa: S608
+        subs_before = db.execute(select_subs).fetchall()
+        kept_sub_text = db.execute(
+            f"SELECT {', '.join(text)} FROM subscription WHERE id = ?",  # noqa: S608
+            (kept_sub,),
+        ).fetchall()
+        catalog_before = db.execute(
+            "SELECT id, builtin_key, name, category, default_plans, hidden, created_at, updated_at"
+            " FROM catalog_service ORDER BY id"
+        ).fetchall()
+        payments_before = db.execute(
+            "SELECT id, subscription_id, due_date, expected_cents, paid_cents, paid_date, status,"
+            " source, created_at, updated_at FROM payment ORDER BY id"
+        ).fetchall()
+
+        apply_migrations(db, after=8, up_to=9)
+
+        assert db.execute(
+            "SELECT id, domain FROM catalog_service WHERE id IN (?, ?) ORDER BY id",
+            (blank_catalog, kept_catalog),
+        ).fetchall() == [(blank_catalog, None), (kept_catalog, "netflix.com")]
+        assert db.execute(
+            f"SELECT {', '.join(text)} FROM subscription WHERE id = ?",  # noqa: S608
+            (blank_sub,),
+        ).fetchall() == [(None, None, None, None, None)]
+        assert (
+            db.execute(
+                f"SELECT {', '.join(text)} FROM subscription WHERE id = ?",  # noqa: S608
+                (kept_sub,),
+            ).fetchall()
+            == kept_sub_text
+        )
+        assert db.execute("SELECT id, note FROM payment ORDER BY id").fetchall() == [
+            (blank_payment, None),
+            (kept_payment, " late "),
+        ]
+        assert db.execute(select_subs).fetchall() == subs_before
+        assert (
+            db.execute(
+                "SELECT id, builtin_key, name, category, default_plans, hidden, created_at,"
+                " updated_at FROM catalog_service ORDER BY id"
+            ).fetchall()
+            == catalog_before
+        )
+        assert (
+            db.execute(
+                "SELECT id, subscription_id, due_date, expected_cents, paid_cents, paid_date,"
+                " status, source, created_at, updated_at FROM payment ORDER BY id"
+            ).fetchall()
+            == payments_before
+        )
+        assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert {
+            name
+            for (name,) in db.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'index'"
+                " AND tbl_name IN ('subscription', 'payment') AND sql IS NOT NULL"
+            )
+        } == {
+            "subscription_catalog_service_idx",
+            "payment_generated_unique_idx",
+            "payment_subscription_due_date_idx",
+            "payment_due_date_idx",
+            "payment_status_due_date_idx",
+        }
+
+        db.execute("DELETE FROM catalog_service WHERE id = ?", (blank_catalog,))
+        assert db.execute(
+            "SELECT catalog_service_id FROM subscription WHERE id = ?", (blank_sub,)
+        ).fetchall() == [(None,)]
+        db.execute("DELETE FROM payment WHERE id = ?", (blank_payment,))
+        assert db.execute("SELECT payment_id FROM notification").fetchall() == [(None,)]
+        db.execute("DELETE FROM subscription WHERE id = ?", (blank_sub,))
+        assert count(db, "price_history") == 0
+    finally:
+        db.close()
+
+
+def test_v9_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=8)
+        sub_id = insert(db, "subscription", subscription_row(notes=""))
+        insert(db, "payment", payment_row(sub_id))
+
+        with pytest.raises(sqlite3.IntegrityError):
+            apply_migrations(db, after=8, up_to=9, foreign_keys=True)
+
+        assert count(db, "payment") == 1
+        assert db.execute("SELECT notes FROM subscription").fetchall() == [("",)]
     finally:
         db.close()
 

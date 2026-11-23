@@ -17,8 +17,8 @@ final class CatalogPlanRequest {
 
   @JsonProperty
   @JsonSetter(nulls = Nulls.FAIL)
-  @NotNull @MinCodePoints(1)
-  @MaxCodePoints(200)
+  @NotNull @MaxCodePoints(200)
+  @NonBlankText(maxCodePoints = 200)
   private @Nullable String plan;
 
   @JsonProperty

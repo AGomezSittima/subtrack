@@ -1,6 +1,6 @@
 # 0008. Home and display time zones; "today" comes from the backend
 
-Date: 2026-11-23 · Status: Accepted
+Date: 2026-11-23 · Status: Accepted · Display time zone value amended by [0009](0009-null-follows-the-device-and-no-blank-text.md)
 
 ## Context
 

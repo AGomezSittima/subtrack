@@ -20,7 +20,7 @@ export const defaultSettings = {
   week_start: 1,
   lock_policy: "idle_15",
   home_time_zone: null,
-  display_time_zone: "device",
+  display_time_zone: null,
 } satisfies Settings;
 
 export async function saveSettings(

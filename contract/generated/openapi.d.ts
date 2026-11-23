@@ -809,16 +809,20 @@ export interface components {
         /** @description Lead time in days before an event. */
         ReminderDays: number;
         ServiceName: string;
+        /** @description At least one character that isn't Unicode whitespace. */
         PlanName: string;
         /**
          * @description Website domain, lowercase, used to load the logo.
          * @example spotify.com
          */
         Domain: string;
-        /** @description Free label such as `Visa ··4417`. */
+        /** @description Free label such as `Visa ··4417`; not blank. */
         PaymentMethodLabel: string;
         WebUrl: string;
+        /** @description Not blank; send null for no note. */
         Note: string;
+        /** @description Logo.dev publishable key, safe in client code; not blank. */
+        LogoDevToken: string;
         /** @description At least 6 letters or digits. */
         Passcode: string;
         /**
@@ -1210,8 +1214,8 @@ export interface components {
             ending_reminder_days: components["schemas"]["ReminderDays"];
             /** @description How far ahead expected payments are generated. */
             payment_horizon_days: number;
-            /** @description Logo.dev publishable key, safe in client code; null = monograms only. */
-            logo_dev_token: string | null;
+            /** @description null = monograms only. */
+            logo_dev_token: components["schemas"]["LogoDevToken"] | null;
             /** @description UI language; null = follow the browser. */
             locale: ("en" | "es") | null;
             /** @enum {string} */
@@ -1225,8 +1229,8 @@ export interface components {
             lock_policy: components["schemas"]["LockPolicy"];
             /** @description Decides which date is today; null = not set yet, and the backend uses UTC. */
             home_time_zone: components["schemas"]["TimeZoneName"] | null;
-            /** @description Zone for showing times of day; `device` follows the browser. */
-            display_time_zone: "device" | components["schemas"]["TimeZoneName"];
+            /** @description Zone for showing times of day; null = follow the device. */
+            display_time_zone: components["schemas"]["TimeZoneName"] | null;
         };
         ClockSet: {
             now: components["schemas"]["Timestamp"];
@@ -1331,7 +1335,7 @@ export interface components {
             yearly_reminder_days: components["schemas"]["ReminderDays"];
             ending_reminder_days: components["schemas"]["ReminderDays"];
             payment_horizon_days: number;
-            logo_dev_token: string | null;
+            logo_dev_token: components["schemas"]["LogoDevToken"] | null;
             locale: ("en" | "es") | null;
             /** @enum {string} */
             theme: "system" | "light" | "dark";
@@ -1342,7 +1346,7 @@ export interface components {
             week_start: number;
             lock_policy: components["schemas"]["LockPolicy"];
             home_time_zone: components["schemas"]["TimeZoneName"] | null;
-            display_time_zone: "device" | components["schemas"]["TimeZoneName"];
+            display_time_zone: components["schemas"]["TimeZoneName"] | null;
         };
     };
     responses: {
