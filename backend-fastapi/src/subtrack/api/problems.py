@@ -44,14 +44,17 @@ class IssueCode(StrEnum):
     REQUIRED = "required"
     UNKNOWN_PROPERTY = "unknown_property"
     TYPE = "type"
+    MIN_LENGTH = "min_length"
+    MAX_LENGTH = "max_length"
     FORMAT = "format"
     PATTERN = "pattern"
     ENUM = "enum"
     MINIMUM = "minimum"
     MAXIMUM = "maximum"
-    MIN_LENGTH = "min_length"
-    MAX_LENGTH = "max_length"
     INVALID = "invalid"
+
+
+_PRECEDENCE = {code: rank for rank, code in enumerate(IssueCode)}
 
 
 type IssueLocation = Literal["body", "query", "path"]
@@ -99,11 +102,17 @@ def problem_response(
     if detail is not None:
         body["detail"] = detail
     if errors:
-        body["errors"] = [issue.to_json() for issue in sorted(errors, key=_issue_order)]
+        body["errors"] = [issue.to_json() for issue in _one_per_field(errors)]
     return JSONResponse(
         body, status_code=problem.status, headers=headers, media_type=PROBLEM_MEDIA_TYPE
     )
 
 
-def _issue_order(issue: ValidationIssue) -> tuple[str, str, str]:
-    return (issue.location, issue.pointer, issue.code.value)
+def _one_per_field(errors: Sequence[ValidationIssue]) -> list[ValidationIssue]:
+    first: dict[tuple[str, str], ValidationIssue] = {}
+    for issue in errors:
+        field = (issue.location, issue.pointer)
+        kept = first.get(field)
+        if kept is None or _PRECEDENCE[issue.code] < _PRECEDENCE[kept.code]:
+            first[field] = issue
+    return [first[field] for field in sorted(first)]
