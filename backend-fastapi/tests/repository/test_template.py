@@ -7,7 +7,7 @@ from sqlalchemy import text
 from subtrack.persistence.engine import create_sqlite_engine
 from subtrack.repository.template import SqlTemplateRepository
 from tests.support.app import database_connection
-from tests.support.rows import fill_every_user_table, insert, rows
+from tests.support.rows import TS, fill_every_user_table, insert, rows
 
 TABLES = [
     "catalog_service",
@@ -56,17 +56,22 @@ def test_ids_start_again_from_one(database: Path, template: Path, db: sqlite3.Co
 def test_the_template_catalogue_is_kept(
     database: Path, template: Path, db: sqlite3.Connection
 ) -> None:
+    netflix = {
+        "name": "Netflix",
+        "domain": "netflix.com",
+        "category": "video",
+        "created_at": TS,
+        "updated_at": TS,
+    }
     with database_connection(template) as fresh:
-        insert(
-            fresh,
-            "catalog_service",
-            {"name": "Netflix", "domain": "netflix.com", "category": "video"},
-        )
-    insert(db, "catalog_service", {"name": "Netflix", "domain": "netflix.com", "category": "video"})
+        insert(fresh, "catalog_service", netflix)
+        seeded = rows(fresh, "catalog_service")
+    insert(db, "catalog_service", netflix | {"name": "Netflix (mine)"})
 
     restore(database, template)
 
-    assert rows(db, "catalog_service") == [(1, "Netflix", "netflix.com", "video", "[]")]
+    assert rows(db, "catalog_service") == seeded
+    assert [row[2] for row in seeded].count("Netflix") == 1
 
 
 def test_tables_added_by_later_migrations_are_restored_too(

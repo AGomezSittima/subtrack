@@ -23,7 +23,13 @@ def fill_every_user_table(db: sqlite3.Connection) -> None:
     catalog_id = insert(
         db,
         "catalog_service",
-        {"name": "Spotify", "domain": "spotify.com", "category": "music"},
+        {
+            "name": "Spotify",
+            "domain": "spotify.com",
+            "category": "music",
+            "created_at": TS,
+            "updated_at": TS,
+        },
     )
     subscription_id = insert(
         db,

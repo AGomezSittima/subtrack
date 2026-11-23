@@ -27,7 +27,7 @@ def count(db: sqlite3.Connection, table: str) -> int:
     return total
 
 
-def catalog_row(**overrides: Any) -> Row:  # noqa: ANN401
+def v1_catalog_row(**overrides: Any) -> Row:  # noqa: ANN401
     return {
         "name": "Spotify",
         "domain": "spotify.com",
@@ -37,6 +37,14 @@ def catalog_row(**overrides: Any) -> Row:  # noqa: ANN401
             ' "interval_unit": "month"}]'
         ),
     } | overrides
+
+
+def catalog_row(**overrides: Any) -> Row:  # noqa: ANN401
+    return v1_catalog_row(created_at=TS, updated_at=TS) | overrides
+
+
+def builtin_row(**overrides: Any) -> Row:  # noqa: ANN401
+    return catalog_row(builtin_key="spotify") | overrides
 
 
 def subscription_row(**overrides: Any) -> Row:  # noqa: ANN401
@@ -215,12 +223,59 @@ def test_a_valid_row_can_be_inserted_in_each_table(migrated_db: sqlite3.Connecti
         pytest.param(subscription_row(interval_unit="week"), id="weekly"),
         pytest.param(subscription_row(interval_unit="year", anchor_date="2024-02-29"), id="leap"),
         pytest.param(subscription_row(price_cents=0), id="free"),
+        *[
+            pytest.param(subscription_row(category=category), id=f"category-{category}")
+            for category in ["gaming", "news", "education"]
+        ],
     ],
 )
 def test_valid_subscription_variants_are_accepted(
     migrated_db: sqlite3.Connection, row: Row
 ) -> None:
     insert(migrated_db, "subscription", row)
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        pytest.param(builtin_row(), id="builtin"),
+        pytest.param(builtin_row(hidden=1), id="hidden-builtin"),
+        pytest.param(builtin_row(builtin_key="1password"), id="key-starts-with-digit"),
+        pytest.param(builtin_row(builtin_key="cloudflare-registrar"), id="key-with-dash"),
+        pytest.param(catalog_row(domain=None), id="no-domain"),
+        pytest.param(catalog_row(default_plans="[]"), id="no-plans"),
+        *[
+            pytest.param(catalog_row(category=category), id=f"category-{category}")
+            for category in ["gaming", "news", "education"]
+        ],
+    ],
+)
+def test_valid_catalogue_variants_are_accepted(migrated_db: sqlite3.Connection, row: Row) -> None:
+    insert(migrated_db, "catalog_service", row)
+
+
+def test_fr_47_catalogue_names_may_repeat(migrated_db: sqlite3.Connection) -> None:
+    insert(migrated_db, "catalog_service", builtin_row())
+    insert(migrated_db, "catalog_service", catalog_row())
+
+    assert migrated_db.execute("SELECT name FROM catalog_service").fetchall() == [
+        ("Spotify",),
+        ("Spotify",),
+    ]
+
+
+def test_a_builtin_key_is_unique(migrated_db: sqlite3.Connection) -> None:
+    insert(migrated_db, "catalog_service", builtin_row(builtin_key="my-service"))
+
+    with pytest.raises(sqlite3.IntegrityError):
+        insert(migrated_db, "catalog_service", builtin_row(builtin_key="my-service"))
+
+
+def test_fr_49_only_a_builtin_can_be_hidden(migrated_db: sqlite3.Connection) -> None:
+    user_id = insert(migrated_db, "catalog_service", catalog_row())
+
+    with pytest.raises(sqlite3.IntegrityError):
+        migrated_db.execute("UPDATE catalog_service SET hidden = 1 WHERE id = ?", (user_id,))
 
 
 type RowFactory = Callable[[int], Row]
@@ -276,6 +331,21 @@ INVALID_ROWS: list[Any] = [
     pytest.param("subscription", lambda _s: subscription_row(category="Music"), id="category"),
     pytest.param("subscription", lambda _s: subscription_row(auto_confirm=2), id="auto_confirm"),
     pytest.param("catalog_service", lambda _s: catalog_row(category="games"), id="cat-category"),
+    pytest.param("catalog_service", lambda _s: catalog_row(hidden=1), id="cat-hidden-user-entry"),
+    pytest.param("catalog_service", lambda _s: builtin_row(hidden=2), id="cat-hidden-2"),
+    *[
+        pytest.param(
+            "catalog_service",
+            lambda _s, v=value: builtin_row(builtin_key=v),
+            id=f"cat-key-{value!r}",
+        )
+        for value in ["", "Spotify", "apple music", "apple_music", "música"]
+    ],
+    pytest.param("catalog_service", lambda _s: catalog_row(name=None), id="cat-no-name"),
+    pytest.param(
+        "catalog_service", lambda _s: catalog_row(created_at="2026-11-10"), id="cat-created"
+    ),
+    pytest.param("catalog_service", lambda _s: v1_catalog_row(), id="cat-no-timestamps"),
     pytest.param("payment", lambda s: payment_row(s, status="pending"), id="payment-status"),
     pytest.param("payment", lambda s: payment_row(s, source="import"), id="payment-source"),
     pytest.param("notification", lambda s: notification_row(s, type="reminder"), id="type"),
@@ -489,7 +559,7 @@ def test_v3_keeps_subscriptions_and_their_history(tmp_path: Path) -> None:
     db = connect(tmp_path / "subs.db")
     try:
         apply_migrations(db, up_to=2)
-        catalog_id = insert(db, "catalog_service", catalog_row())
+        catalog_id = insert(db, "catalog_service", v1_catalog_row())
         sub_id = insert(
             db,
             "subscription",
@@ -506,7 +576,7 @@ def test_v3_keeps_subscriptions_and_their_history(tmp_path: Path) -> None:
         insert(db, "notification", notification_row(sub_id, payment_id=payment_id))
         before = db.execute("SELECT * FROM subscription").fetchall()
 
-        apply_migrations(db, after=2)
+        apply_migrations(db, after=2, up_to=3)
 
         columns = [row[1] for row in db.execute("PRAGMA table_info(subscription)")]
         after = db.execute(
@@ -545,5 +615,80 @@ def test_v3_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
 
         assert count(db, "payment") == 1
         assert "resumed_on" not in [row[1] for row in db.execute("PRAGMA table_info(subscription)")]
+    finally:
+        db.close()
+
+
+def test_v4_keeps_catalogue_entries_and_subscriptions_as_user_data(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=3)
+        catalog_id = insert(db, "catalog_service", v1_catalog_row())
+        sub_id = insert(
+            db,
+            "subscription",
+            subscription_row(
+                catalog_service_id=catalog_id,
+                status="trial",
+                trial_end_date="2026-02-14",
+                resumed_on="2026-05-01",
+                unarchived_on="2026-11-19",
+                archived_at="2026-11-20T08:00:00.123Z",
+            ),
+        )
+        insert(db, "price_history", price_row(sub_id))
+        payment_id = insert(db, "payment", paid_payment_row(sub_id))
+        insert(db, "notification", notification_row(sub_id, payment_id=payment_id))
+        subscriptions_before = db.execute("SELECT * FROM subscription").fetchall()
+
+        apply_migrations(db, after=3, up_to=4)
+
+        assert db.execute(
+            "SELECT id, builtin_key, name, domain, category, default_plans, hidden"
+            " FROM catalog_service"
+        ).fetchall() == [
+            (
+                catalog_id,
+                None,
+                "Spotify",
+                "spotify.com",
+                "music",
+                v1_catalog_row()["default_plans"],
+                0,
+            )
+        ]
+        ((created_at, updated_at),) = db.execute(
+            "SELECT created_at, updated_at FROM catalog_service"
+        ).fetchall()
+        assert created_at == updated_at
+        assert db.execute("SELECT * FROM subscription").fetchall() == subscriptions_before
+        assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert db.execute(
+            "SELECT 1 FROM sqlite_schema WHERE type = 'index'"
+            " AND name = 'subscription_catalog_service_idx' AND tbl_name = 'subscription'"
+        ).fetchall() == [(1,)]
+
+        db.execute("DELETE FROM catalog_service WHERE id = ?", (catalog_id,))
+        assert db.execute("SELECT catalog_service_id FROM subscription").fetchall() == [(None,)]
+        db.execute("DELETE FROM subscription WHERE id = ?", (sub_id,))
+        assert count(db, "price_history") == 0
+        assert count(db, "payment") == 0
+    finally:
+        db.close()
+
+
+def test_v4_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=3)
+        sub_id = insert(db, "subscription", subscription_row())
+        insert(db, "payment", payment_row(sub_id))
+
+        with pytest.raises(sqlite3.IntegrityError):
+            apply_migrations(db, after=3, up_to=4, foreign_keys=True)
+
+        assert count(db, "payment") == 1
+        columns = [row[1] for row in db.execute("PRAGMA table_info(catalog_service)")]
+        assert "builtin_key" not in columns
     finally:
         db.close()

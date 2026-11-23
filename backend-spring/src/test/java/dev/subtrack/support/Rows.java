@@ -12,12 +12,15 @@ public final class Rows {
   public static void fillEveryUserTable(Path db) {
     TestDatabase.execute(
         db,
-        "INSERT INTO catalog_service (name, domain, category) VALUES ('Spotify', 'spotify.com', 'music')");
+        "INSERT INTO catalog_service (name, domain, category, created_at, updated_at) VALUES"
+            + " ('Spotify', 'spotify.com', 'music', ?, ?)",
+        TS,
+        TS);
     TestDatabase.execute(
         db,
         "INSERT INTO subscription (catalog_service_id, name, category, price_cents, interval_count,"
             + " interval_unit, anchor_date, status, created_at, updated_at) VALUES"
-            + " (1, 'Spotify', 'music', 1199, 1, 'month', '2026-01-31', 'active', ?, ?)",
+            + " ((SELECT max(id) FROM catalog_service), 'Spotify', 'music', 1199, 1, 'month', '2026-01-31', 'active', ?, ?)",
         TS,
         TS);
     TestDatabase.execute(
