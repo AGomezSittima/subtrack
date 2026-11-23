@@ -53,7 +53,12 @@ def test_br28_a_trial_needs_a_trial_end_date_for_payment_planning() -> None:
 def test_br28_a_trial_needs_a_trial_end_date_for_reminder_planning() -> None:
     with pytest.raises(BillingInputError) as error:
         ReminderSubscription(
-            id=1, name="Spotify", interval=MONTHLY, status=SubscriptionStatus.TRIAL, archived=False
+            id=1,
+            name="Spotify",
+            interval=MONTHLY,
+            status=SubscriptionStatus.TRIAL,
+            archived=False,
+            reminders_enabled=True,
         )
     assert error.value.code is BillingErrorCode.TRIAL_END_DATE_REQUIRED
 

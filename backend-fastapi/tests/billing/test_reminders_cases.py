@@ -26,6 +26,7 @@ def parse_subscription(value: Json) -> ReminderSubscription:
         interval=parse_interval(value["interval"]),
         status=SubscriptionStatus(value["status"]),
         archived=value["archived"],
+        reminders_enabled=value["reminders_enabled"],
         reminder_days=value["reminder_days"],
         trial_end_date=parse_optional_date(value.get("trial_end_date")),
         ends_on=parse_optional_date(value.get("ends_on")),
