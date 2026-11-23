@@ -1016,7 +1016,7 @@ paths:
       summary: Set the clock (test mode only)
       description: |
         **Test mode only; 404 otherwise.** Not subject to the privacy lock. Pins the backend clock to
-        `now`. It stays there until set again; "today" is the date of `now` in Europe/Madrid.
+        `now`. It stays there until set again; "today" is the date of `now` in the home time zone (UTC while it is not set).
       security: []
       requestBody:
         required: true
@@ -1211,6 +1211,13 @@ components:
       description: When the app locks while a passcode is set.
       type: string
       enum: [on_open, idle_5, idle_15, idle_30, idle_60, manual]
+    TimeZoneName:
+      description: IANA time zone name; offsets such as `+01:00` are not accepted.
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"
+      examples: ["Europe/Madrid"]
     ReminderDays:
       description: Lead time in days before an event.
       type: integer
@@ -1347,7 +1354,7 @@ components:
     Health:
       type: object
       additionalProperties: false
-      required: [status, backend, version, last_scheduler_run]
+      required: [status, backend, version, today, last_scheduler_run]
       properties:
         status:
           type: string
@@ -1359,6 +1366,9 @@ components:
           type: string
           description: Application version.
           examples: ["0.1.0"]
+        today:
+          description: The current date in the home time zone (UTC while it is not set).
+          $ref: "#/components/schemas/Date"
         last_scheduler_run:
           description: "When the scheduler job last finished, or null if it never ran."
           type: [string, "null"]
@@ -2192,6 +2202,8 @@ components:
         - reduced_motion
         - week_start
         - lock_policy
+        - home_time_zone
+        - display_time_zone
       properties:
         default_reminder_days:
           description: Renewal reminder lead time.
@@ -2239,6 +2251,17 @@ components:
           maximum: 7
         lock_policy:
           $ref: "#/components/schemas/LockPolicy"
+        home_time_zone:
+          description: Decides which date is today; null = not set yet, and the backend uses UTC.
+          anyOf:
+            - $ref: "#/components/schemas/TimeZoneName"
+            - type: "null"
+        display_time_zone:
+          description: Zone for showing times of day; `device` follows the browser.
+          anyOf:
+            - type: string
+              const: device
+            - $ref: "#/components/schemas/TimeZoneName"
 
     ClockSet:
       type: object
@@ -2562,6 +2585,8 @@ components:
         - reduced_motion
         - week_start
         - lock_policy
+        - home_time_zone
+        - display_time_zone
       properties:
         default_reminder_days:
           $ref: "#/components/schemas/ReminderDays"
@@ -2601,3 +2626,12 @@ components:
           maximum: 7
         lock_policy:
           $ref: "#/components/schemas/LockPolicy"
+        home_time_zone:
+          anyOf:
+            - $ref: "#/components/schemas/TimeZoneName"
+            - type: "null"
+        display_time_zone:
+          anyOf:
+            - type: string
+              const: device
+            - $ref: "#/components/schemas/TimeZoneName"

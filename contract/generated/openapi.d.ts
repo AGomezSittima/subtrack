@@ -716,7 +716,7 @@ export interface paths {
         /**
          * Set the clock (test mode only)
          * @description **Test mode only; 404 otherwise.** Not subject to the privacy lock. Pins the backend clock to
-         *     `now`. It stays there until set again; "today" is the date of `now` in Europe/Madrid.
+         *     `now`. It stays there until set again; "today" is the date of `now` in the home time zone (UTC while it is not set).
          */
         post: operations["setClock"];
         delete?: never;
@@ -801,6 +801,11 @@ export interface components {
          * @enum {string}
          */
         LockPolicy: "on_open" | "idle_5" | "idle_15" | "idle_30" | "idle_60" | "manual";
+        /**
+         * @description IANA time zone name; offsets such as `+01:00` are not accepted.
+         * @example Europe/Madrid
+         */
+        TimeZoneName: string;
         /** @description Lead time in days before an event. */
         ReminderDays: number;
         ServiceName: string;
@@ -872,6 +877,8 @@ export interface components {
              * @example 0.1.0
              */
             version: string;
+            /** @description The current date in the home time zone (UTC while it is not set). */
+            today: components["schemas"]["Date"];
             /**
              * Format: date-time
              * @description When the scheduler job last finished, or null if it never ran.
@@ -1211,6 +1218,10 @@ export interface components {
             /** @description First day of the week, 1 = Monday … 7 = Sunday. */
             week_start: number;
             lock_policy: components["schemas"]["LockPolicy"];
+            /** @description Decides which date is today; null = not set yet, and the backend uses UTC. */
+            home_time_zone: components["schemas"]["TimeZoneName"] | null;
+            /** @description Zone for showing times of day; `device` follows the browser. */
+            display_time_zone: "device" | components["schemas"]["TimeZoneName"];
         };
         ClockSet: {
             now: components["schemas"]["Timestamp"];
@@ -1324,6 +1335,8 @@ export interface components {
             reduced_motion: "system" | "always";
             week_start: number;
             lock_policy: components["schemas"]["LockPolicy"];
+            home_time_zone: components["schemas"]["TimeZoneName"] | null;
+            display_time_zone: "device" | components["schemas"]["TimeZoneName"];
         };
     };
     responses: {
