@@ -30,6 +30,8 @@ Accepted records are not rewritten. To change a decision, write a new ADR that s
 | [0006](0006-fastapi-lock-middleware.md) | FastAPI enforces the privacy lock in ASGI middleware | Accepted |
 | [0007](0007-catalogue-ownership.md) | The catalogue belongs to the user; updates only add built-ins | Accepted |
 | [0008](0008-configurable-time-zones.md) | Home and display time zones; "today" comes from the backend | Accepted, amended by 0009 |
-| [0009](0009-null-follows-the-device-and-no-blank-text.md) | Null follows the device; optional text is null or non-blank | Accepted |
+| [0009](0009-null-follows-the-device-and-no-blank-text.md) | Null follows the device; optional text is null or non-blank | Accepted, amended by 0010 |
+| [0010](0010-trimmed-text.md) | Text is trimmed by the frontend and checked, never changed, by the backends | Accepted |
+| [0011](0011-one-error-per-field.md) | One validation error per field, by precedence | Accepted |
 
 0001 to 0004 record decisions taken on 2026-11-10, when the SRS and SDD were written, before this log existed.

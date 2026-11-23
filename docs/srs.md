@@ -264,6 +264,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 | 2026-11-23 | Domain names | One subscription per domain, from the registrar's catalogue entry |
 | 2026-11-23 | Following the device; empty text | An unset display time zone follows the device; an empty or blank optional text field is stored as no value (FR-1, FR-54) |
 | 2026-11-23 | Turning reminders off | A per-subscription on/off switch, separate from the lead time, replaces the -1 value; the global lead times can't be turned off (FR-15, BR-13, BR-14) |
+| 2026-11-23 | Spaces around text | Text is never empty and never starts or ends with a space, tab or line break; the app trims what is typed, and values sent otherwise are rejected, never changed (FR-1, FR-26, FR-47, FR-48) |
 
 **Open questions**
 
