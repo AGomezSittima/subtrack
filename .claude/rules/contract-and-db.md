@@ -26,7 +26,7 @@ Full detail: `docs/sdd.md` (API contract, API evolution, Database schema).
 - Every table has `id INTEGER PRIMARY KEY`; `created_at` / `updated_at` where rows change.
 - Money columns are `INTEGER` cents. Date and timestamp columns are `TEXT` with `CHECK` constraints on their format.
 - Use `CHECK` constraints for enums (status, interval unit, etc.) and foreign keys with explicit `ON DELETE` behavior.
-- The catalogue seed lives in its own migration; catalogue changes are new migrations.
+- Built-in catalogue services come from `db/catalog/catalog.json` through `just catalog-migration`, which writes the next migration. Add new entries only; never edit or remove one that is in a migration (ADR 0007, checked by `just lint`).
 - SQL comments only for a one-line why caused by SQLite or Flyway behavior. Constraint and index names say what they do.
 
 ## Export format

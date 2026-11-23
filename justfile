@@ -34,6 +34,10 @@ down:
 gen:
     pnpm --filter @subtrack/contract run gen
 
+# Write the next migration with the built-ins in db/catalog/catalog.json that no migration inserts yet
+catalog-migration:
+    pnpm --filter @subtrack/db run catalog-migration
+
 # Lint, format-check and type-check every part
 lint: lint-js lint-fastapi lint-spring
 
@@ -60,8 +64,8 @@ fmt:
     cd backend-fastapi && uv run ruff format .
     cd backend-spring && ./gradlew --quiet spotlessApply
 
-# All fast checks: static analysis, unit tests, API suite against both backends
-test: lint test-unit (test-api "fastapi") (test-api "spring")
+# All fast checks: static analysis, unit tests, API suite against both backends, cross-backend check
+test: lint test-unit (test-api "fastapi") (test-api "spring") test-cross
 
 # Unit tests of every part
 test-unit: test-unit-js test-unit-fastapi test-unit-spring
@@ -92,6 +96,38 @@ test-api profile:
 # Schemathesis contract checks alone against one backend (fastapi or spring)
 test-contract profile:
     @just _with-test-stack {{ profile }} "" "" contract
+
+# Write with one backend and read with the other on the same database, in both directions
+test-cross:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    compose="{{ test_compose }} --profile fastapi --profile spring"
+    state="$(mktemp)"
+    cleanup() {
+        local status=$?
+        if (( status != 0 )); then
+            $compose ps --all
+            $compose logs --no-color --timestamps
+        fi
+        $compose down --volumes --remove-orphans
+        rm -f "$state"
+        exit "$status"
+    }
+    trap cleanup EXIT
+    run() {
+        CROSS_STATE="$state" EXPECTED_BACKEND="$2" pnpm --filter @subtrack/e2e exec playwright test --project "$1"
+    }
+    switch() {
+        {{ test_compose }} --profile "$1" stop "api-$1"
+        {{ test_compose }} --profile "$2" up -d --build --wait
+    }
+    {{ test_compose }} --profile fastapi up -d --build --wait
+    run cross-write fastapi
+    switch fastapi spring
+    run cross-read spring
+    run cross-write spring
+    switch spring fastapi
+    run cross-read fastapi
 
 # Full browser suite against both backends
 test-e2e: (test-e2e-profile "fastapi") (test-e2e-profile "spring")

@@ -28,5 +28,6 @@ Accepted records are not rewritten. To change a decision, write a new ADR that s
 | [0004](0004-privacy-lock-scope.md) | The privacy lock is a privacy screen, not data protection | Accepted, amended by 0006 |
 | [0005](0005-contract-lint-exceptions.md) | Contract lint exceptions | Accepted |
 | [0006](0006-fastapi-lock-middleware.md) | FastAPI enforces the privacy lock in ASGI middleware | Accepted |
+| [0007](0007-catalogue-ownership.md) | The catalogue belongs to the user; updates only add built-ins | Accepted |
 
 0001 to 0004 record decisions taken on 2026-11-10, when the SRS and SDD were written, before this log existed.

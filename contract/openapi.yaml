@@ -13,7 +13,7 @@ tags:
   - name: auth
     description: Privacy lock. Not encryption or data protection.
   - name: catalog
-    description: Catalogue of known services used to prefill new subscriptions.
+    description: Catalogue of built-in and user services used to prefill new subscriptions; changing it never changes existing subscriptions.
   - name: subscriptions
     description: Subscriptions, their status and archive.
   - name: prices
@@ -166,15 +166,21 @@ paths:
       operationId: listCatalogServices
       tags: [catalog]
       summary: List catalogue services
-      description: Catalogue entries sorted by name, optionally filtered by a search term.
+      description: "Sorted by name (ASCII case-insensitive), then id. Hidden built-ins only with `include_hidden=true`."
       parameters:
         - name: q
           in: query
-          description: Case-insensitive substring of the service name.
+          description: Substring of the service name; ASCII letters match case-insensitively.
           schema:
             type: string
             minLength: 1
             maxLength: 100
+        - name: include_hidden
+          in: query
+          description: "`true` also lists hidden built-ins."
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Matching catalogue services.
@@ -184,6 +190,76 @@ paths:
                 $ref: "#/components/schemas/CatalogServiceList"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    post:
+      operationId: createCatalogService
+      tags: [catalog]
+      summary: Add a catalogue service
+      description: "Adds a user entry. A plan whose name and interval repeat an earlier one is 422 `invalid` on `/plans/<i>`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogServiceCreate"
+      responses:
+        "201":
+          description: The created entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogService"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /catalog/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      operationId: updateCatalogService
+      tags: [catalog]
+      summary: Edit a catalogue service
+      description: "Changes the fields sent; `plans` replaces the whole list. Only built-ins can be hidden (otherwise 422 `invalid` on `/hidden`). A plan whose name and interval repeat an earlier one is 422 `invalid` on `/plans/<i>`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogServiceUpdate"
+      responses:
+        "200":
+          description: The updated entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogService"
+        "400":
+          $ref: "#/components/responses/MalformedRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      operationId: deleteCatalogService
+      tags: [catalog]
+      summary: Delete a user catalogue service
+      description: "Subscriptions created from it stay, unlinked. Built-ins can't be deleted (409 `builtin-service-not-deletable`); hide them instead."
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
@@ -1101,7 +1177,20 @@ components:
     Category:
       description: Category code; the frontend translates it.
       type: string
-      enum: [music, video, vpn, cloud, ai, software, domains, other]
+      enum:
+        [
+          music,
+          video,
+          vpn,
+          cloud,
+          ai,
+          software,
+          domains,
+          gaming,
+          news,
+          education,
+          other,
+        ]
     SubscriptionStatus:
       type: string
       enum: [trial, active, paused, cancelled]
@@ -1135,6 +1224,12 @@ components:
       type: string
       minLength: 1
       maxLength: 200
+    Domain:
+      description: Website domain, lowercase, used to load the logo.
+      type: string
+      maxLength: 253
+      pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+      examples: ["spotify.com"]
     PaymentMethodLabel:
       description: "Free label such as `Visa ··4417`."
       type: string
@@ -1166,6 +1261,7 @@ components:
         - urn:subtrack:problem:payment-not-expected
         - urn:subtrack:problem:payment-not-paid
         - urn:subtrack:problem:price-change-exists
+        - urn:subtrack:problem:builtin-service-not-deletable
         - urn:subtrack:problem:unsupported-media-type
         - urn:subtrack:problem:validation-error
         - urn:subtrack:problem:unsupported-format-version
@@ -1324,31 +1420,107 @@ components:
         plan:
           $ref: "#/components/schemas/PlanName"
         price_cents:
-          $ref: "#/components/schemas/Cents"
+          description: Price entered by the user, or null; prefills new subscriptions.
+          anyOf:
+            - $ref: "#/components/schemas/Cents"
+            - type: "null"
         interval_count:
           $ref: "#/components/schemas/IntervalCount"
         interval_unit:
           $ref: "#/components/schemas/IntervalUnit"
+    CatalogPlanInput:
+      type: object
+      additionalProperties: false
+      required: [plan, interval_count, interval_unit]
+      properties:
+        plan:
+          $ref: "#/components/schemas/PlanName"
+        price_cents:
+          description: Omitted or null for no price.
+          anyOf:
+            - $ref: "#/components/schemas/Cents"
+            - type: "null"
+        interval_count:
+          $ref: "#/components/schemas/IntervalCount"
+        interval_unit:
+          $ref: "#/components/schemas/IntervalUnit"
+    CatalogPlanInputList:
+      type: array
+      maxItems: 50
+      items:
+        $ref: "#/components/schemas/CatalogPlanInput"
     CatalogService:
       type: object
       additionalProperties: false
-      required: [id, name, domain, category, plans]
+      required:
+        [
+          id,
+          name,
+          domain,
+          category,
+          plans,
+          builtin,
+          hidden,
+          created_at,
+          updated_at,
+        ]
       properties:
         id:
           $ref: "#/components/schemas/Id"
         name:
           $ref: "#/components/schemas/ServiceName"
         domain:
-          description: Website domain, used to load the logo.
-          type: string
-          examples: ["spotify.com"]
+          anyOf:
+            - $ref: "#/components/schemas/Domain"
+            - type: "null"
         category:
           $ref: "#/components/schemas/Category"
         plans:
-          description: Typical plans with price and interval.
+          description: Typical plans with interval and optional price.
           type: array
           items:
             $ref: "#/components/schemas/CatalogPlan"
+        builtin:
+          description: Shipped with the app; can be hidden but not deleted.
+          type: boolean
+        hidden:
+          description: Left out of the catalogue unless `include_hidden=true`; always false for user entries.
+          type: boolean
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    CatalogServiceCreate:
+      type: object
+      additionalProperties: false
+      required: [name, category, plans]
+      properties:
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        domain:
+          anyOf:
+            - $ref: "#/components/schemas/Domain"
+            - type: "null"
+        category:
+          $ref: "#/components/schemas/Category"
+        plans:
+          $ref: "#/components/schemas/CatalogPlanInputList"
+    CatalogServiceUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          $ref: "#/components/schemas/ServiceName"
+        domain:
+          anyOf:
+            - $ref: "#/components/schemas/Domain"
+            - type: "null"
+        category:
+          $ref: "#/components/schemas/Category"
+        plans:
+          $ref: "#/components/schemas/CatalogPlanInputList"
+        hidden:
+          type: boolean
     CatalogServiceList:
       type: object
       additionalProperties: false

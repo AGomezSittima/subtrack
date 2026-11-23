@@ -19,6 +19,11 @@ class ProblemType(Enum):
     PAYMENT_NOT_EXPECTED = ("payment-not-expected", 409, "Payment not expected")
     PAYMENT_NOT_PAID = ("payment-not-paid", 409, "Payment not paid")
     PRICE_CHANGE_EXISTS = ("price-change-exists", 409, "Price change exists")
+    BUILTIN_SERVICE_NOT_DELETABLE = (
+        "builtin-service-not-deletable",
+        409,
+        "Built-in service not deletable",
+    )
     UNSUPPORTED_MEDIA_TYPE = ("unsupported-media-type", 415, "Unsupported media type")
     VALIDATION_ERROR = ("validation-error", 422, "Validation error")
     UNSUPPORTED_FORMAT_VERSION = ("unsupported-format-version", 422, "Unsupported format version")

@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { components } from "@subtrack/contract";
 
 export type Backend = components["schemas"]["Health"]["backend"];
@@ -33,4 +35,7 @@ export const env = {
   /** Set by `just test-api <profile>` / `just test-e2e-profile <profile>`; unset accepts either. */
   expectedBackend: expectedBackend(process.env.EXPECTED_BACKEND),
   ci: process.env.CI === "true",
+  /** Where the cross-backend writer leaves what the reader compares; `just test-cross` sets it. */
+  crossState:
+    process.env.CROSS_STATE ?? join(tmpdir(), "subtrack-cross-state.json"),
 };

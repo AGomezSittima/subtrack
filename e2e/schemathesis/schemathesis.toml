@@ -8,5 +8,18 @@ with-security-parameters = false
 ignored_auth.enabled = false
 
 [[operations]]
-exclude-operation-id = ["getHealth", "setClock", "resetData"]
+exclude-operation-id = [
+  "getHealth",
+  "setClock",
+  "resetData",
+  "listCatalogServices",
+  "createCatalogService",
+  "updateCatalogService",
+  "deleteCatalogService",
+]
 enabled = false
+
+# Repeated plans and hiding a user entry are 422 by rules the schema can't express.
+[[operations]]
+include-operation-id = ["createCatalogService", "updateCatalogService"]
+checks.positive_data_acceptance.expected-statuses = ["2xx", "404", "422"]

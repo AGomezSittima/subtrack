@@ -117,15 +117,46 @@ export interface paths {
         };
         /**
          * List catalogue services
-         * @description Catalogue entries sorted by name, optionally filtered by a search term.
+         * @description Sorted by name (ASCII case-insensitive), then id. Hidden built-ins only with `include_hidden=true`.
          */
         get: operations["listCatalogServices"];
         put?: never;
-        post?: never;
+        /**
+         * Add a catalogue service
+         * @description Adds a user entry. A plan whose name and interval repeat an earlier one is 422 `invalid` on `/plans/<i>`.
+         */
+        post: operations["createCatalogService"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/catalog/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user catalogue service
+         * @description Subscriptions created from it stay, unlinked. Built-ins can't be deleted (409 `builtin-service-not-deletable`); hide them instead.
+         */
+        delete: operations["deleteCatalogService"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit a catalogue service
+         * @description Changes the fields sent; `plans` replaces the whole list. Only built-ins can be hidden (otherwise 422 `invalid` on `/hidden`). A plan whose name and interval repeat an earlier one is 422 `invalid` on `/plans/<i>`.
+         */
+        patch: operations["updateCatalogService"];
         trace?: never;
     };
     "/subscriptions": {
@@ -751,7 +782,7 @@ export interface components {
          * @description Category code; the frontend translates it.
          * @enum {string}
          */
-        Category: "music" | "video" | "vpn" | "cloud" | "ai" | "software" | "domains" | "other";
+        Category: "music" | "video" | "vpn" | "cloud" | "ai" | "software" | "domains" | "gaming" | "news" | "education" | "other";
         /** @enum {string} */
         SubscriptionStatus: "trial" | "active" | "paused" | "cancelled";
         /** @enum {string} */
@@ -774,6 +805,11 @@ export interface components {
         ReminderDays: number;
         ServiceName: string;
         PlanName: string;
+        /**
+         * @description Website domain, lowercase, used to load the logo.
+         * @example spotify.com
+         */
+        Domain: string;
         /** @description Free label such as `Visa ··4417`. */
         PaymentMethodLabel: string;
         WebUrl: string;
@@ -784,7 +820,7 @@ export interface components {
          * @description Stable problem code the frontend translates; `title` and `detail` are never shown. Statuses and meanings are in docs/sdd.md, Errors.
          * @enum {string}
          */
-        ProblemType: "urn:subtrack:problem:malformed-request" | "urn:subtrack:problem:unauthorized" | "urn:subtrack:problem:invalid-passcode" | "urn:subtrack:problem:not-found" | "urn:subtrack:problem:method-not-allowed" | "urn:subtrack:problem:passcode-not-set" | "urn:subtrack:problem:invalid-status-transition" | "urn:subtrack:problem:payment-not-expected" | "urn:subtrack:problem:payment-not-paid" | "urn:subtrack:problem:price-change-exists" | "urn:subtrack:problem:unsupported-media-type" | "urn:subtrack:problem:validation-error" | "urn:subtrack:problem:unsupported-format-version" | "urn:subtrack:problem:too-many-attempts" | "urn:subtrack:problem:internal-error";
+        ProblemType: "urn:subtrack:problem:malformed-request" | "urn:subtrack:problem:unauthorized" | "urn:subtrack:problem:invalid-passcode" | "urn:subtrack:problem:not-found" | "urn:subtrack:problem:method-not-allowed" | "urn:subtrack:problem:passcode-not-set" | "urn:subtrack:problem:invalid-status-transition" | "urn:subtrack:problem:payment-not-expected" | "urn:subtrack:problem:payment-not-paid" | "urn:subtrack:problem:price-change-exists" | "urn:subtrack:problem:builtin-service-not-deletable" | "urn:subtrack:problem:unsupported-media-type" | "urn:subtrack:problem:validation-error" | "urn:subtrack:problem:unsupported-format-version" | "urn:subtrack:problem:too-many-attempts" | "urn:subtrack:problem:internal-error";
         /** @description RFC 9457 problem details. */
         Problem: {
             type: components["schemas"]["ProblemType"];
@@ -864,21 +900,45 @@ export interface components {
         };
         CatalogPlan: {
             plan: components["schemas"]["PlanName"];
-            price_cents: components["schemas"]["Cents"];
+            /** @description Price entered by the user, or null; prefills new subscriptions. */
+            price_cents: components["schemas"]["Cents"] | null;
             interval_count: components["schemas"]["IntervalCount"];
             interval_unit: components["schemas"]["IntervalUnit"];
         };
+        CatalogPlanInput: {
+            plan: components["schemas"]["PlanName"];
+            /** @description Omitted or null for no price. */
+            price_cents?: components["schemas"]["Cents"] | null;
+            interval_count: components["schemas"]["IntervalCount"];
+            interval_unit: components["schemas"]["IntervalUnit"];
+        };
+        CatalogPlanInputList: components["schemas"]["CatalogPlanInput"][];
         CatalogService: {
             id: components["schemas"]["Id"];
             name: components["schemas"]["ServiceName"];
-            /**
-             * @description Website domain, used to load the logo.
-             * @example spotify.com
-             */
-            domain: string;
+            domain: components["schemas"]["Domain"] | null;
             category: components["schemas"]["Category"];
-            /** @description Typical plans with price and interval. */
+            /** @description Typical plans with interval and optional price. */
             plans: components["schemas"]["CatalogPlan"][];
+            /** @description Shipped with the app; can be hidden but not deleted. */
+            builtin: boolean;
+            /** @description Left out of the catalogue unless `include_hidden=true`; always false for user entries. */
+            hidden: boolean;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        CatalogServiceCreate: {
+            name: components["schemas"]["ServiceName"];
+            domain?: components["schemas"]["Domain"] | null;
+            category: components["schemas"]["Category"];
+            plans: components["schemas"]["CatalogPlanInputList"];
+        };
+        CatalogServiceUpdate: {
+            name?: components["schemas"]["ServiceName"];
+            domain?: components["schemas"]["Domain"] | null;
+            category?: components["schemas"]["Category"];
+            plans?: components["schemas"]["CatalogPlanInputList"];
+            hidden?: boolean;
         };
         CatalogServiceList: {
             items: components["schemas"]["CatalogService"][];
@@ -1513,8 +1573,10 @@ export interface operations {
     listCatalogServices: {
         parameters: {
             query?: {
-                /** @description Case-insensitive substring of the service name. */
+                /** @description Substring of the service name; ASCII letters match case-insensitively. */
                 q?: string;
+                /** @description `true` also lists hidden built-ins. */
+                include_hidden?: boolean;
             };
             header?: never;
             path?: never;
@@ -1532,6 +1594,89 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    createCatalogService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogServiceCreate"];
+            };
+        };
+        responses: {
+            /** @description The created entry. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogService"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    deleteCatalogService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    updateCatalogService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the resource. */
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogServiceUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated entry. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogService"];
+                };
+            };
+            400: components["responses"]["MalformedRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationFailed"];
         };
     };

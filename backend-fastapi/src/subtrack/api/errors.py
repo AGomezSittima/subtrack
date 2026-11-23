@@ -5,8 +5,10 @@ from collections.abc import Callable, Sequence
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import iter_route_contexts
 from pydantic_core import ErrorDetails
 from starlette.exceptions import HTTPException
+from starlette.routing import Match
 
 from subtrack.api.problems import (
     IssueCode,
@@ -18,6 +20,7 @@ from subtrack.api.problems import (
     problem_response,
 )
 from subtrack.api.types import FORMAT_ERROR
+from subtrack.service.errors import BuiltinNotDeletableError, InvalidFieldsError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +58,9 @@ _PARAMS = {
 
 def install_error_handlers(app: FastAPI) -> None:
     _register(app, ProblemError, _problem)
+    _register(app, NotFoundError, _not_found)
+    _register(app, BuiltinNotDeletableError, _builtin_not_deletable)
+    _register(app, InvalidFieldsError, _invalid_fields)
     _register(app, HTTPException, _http)
     _register(app, RequestValidationError, _validation)
     _register(app, Exception, _unexpected)
@@ -75,14 +81,32 @@ def _problem(_: Request, exc: ProblemError) -> JSONResponse:
     return problem_response(exc.type, detail=exc.detail, errors=exc.errors, headers=exc.headers)
 
 
-def _http(_: Request, exc: HTTPException) -> JSONResponse:
+def _not_found(_: Request, __: NotFoundError) -> JSONResponse:
+    return problem_response(ProblemType.NOT_FOUND)
+
+
+def _builtin_not_deletable(_: Request, __: BuiltinNotDeletableError) -> JSONResponse:
+    return problem_response(ProblemType.BUILTIN_SERVICE_NOT_DELETABLE)
+
+
+def _invalid_fields(_: Request, exc: InvalidFieldsError) -> JSONResponse:
+    issues = [ValidationIssue("body", pointer, IssueCode.INVALID) for pointer in exc.pointers]
+    return problem_response(ProblemType.VALIDATION_ERROR, errors=issues)
+
+
+def _http(request: Request, exc: HTTPException) -> JSONResponse:
     problem = _HTTP_PROBLEMS.get(exc.status_code, ProblemType.INTERNAL_ERROR)
     allow = (exc.headers or {}).get("Allow")
-    return problem_response(problem, headers={"Allow": _allow(allow)} if allow else None)
+    return problem_response(problem, headers={"Allow": _allow(request, allow)} if allow else None)
 
 
-def _allow(header: str) -> str:
+def _allow(request: Request, header: str) -> str:
+    # Starlette's Allow header lists only the first route that matches the path.
     methods = {method.strip() for method in header.split(",")}
+    for route in iter_route_contexts(request.app.router.routes):
+        match, _ = route.matches(request.scope)
+        if match is not Match.NONE:
+            methods.update(route.methods or ())
     if "GET" in methods:
         methods.add("HEAD")
     return ", ".join(sorted(methods))
@@ -119,6 +143,8 @@ def _has_body(request: Request) -> bool:
 def _issue(error: ErrorDetails) -> ValidationIssue:
     location, *path = error["loc"]
     code = _ISSUE_CODES.get(error["type"], _fallback_code(error["type"]))
+    if code is IssueCode.ENUM and not isinstance(error.get("input"), str):
+        code = IssueCode.TYPE
     return ValidationIssue(
         location=_location(location),
         pointer="".join(f"/{_escape(part)}" for part in path),

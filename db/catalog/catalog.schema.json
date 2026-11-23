@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "catalog.schema.json",
+  "title": "Built-in catalogue services",
+  "description": "Append-only: an entry that is in a migration is never edited or removed (docs/adr/0007-catalogue-ownership.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["services"],
+  "properties": {
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/service" }
+    }
+  },
+  "$defs": {
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "name", "domain", "category", "plans"],
+      "properties": {
+        "key": {
+          "description": "Stable identity of the built-in, unique in the file. Never renamed.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "maxLength": 100
+        },
+        "name": {
+          "description": "Display name, unique in the file.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "domain": {
+          "description": "Website domain, used to load the logo.",
+          "type": "string",
+          "maxLength": 253,
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+        },
+        "category": {
+          "enum": [
+            "music",
+            "video",
+            "vpn",
+            "cloud",
+            "ai",
+            "software",
+            "domains",
+            "gaming",
+            "news",
+            "education",
+            "other"
+          ]
+        },
+        "plans": {
+          "description": "Typical plans; each plan name and interval appears once. Built-ins carry no prices.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": { "$ref": "#/$defs/plan" }
+        }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan", "interval_count", "interval_unit"],
+      "properties": {
+        "plan": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "interval_count": { "type": "integer", "minimum": 1, "maximum": 366 },
+        "interval_unit": { "enum": ["day", "week", "month", "year"] }
+      }
+    }
+  }
+}

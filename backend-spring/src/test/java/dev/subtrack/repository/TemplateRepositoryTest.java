@@ -100,15 +100,17 @@ class TemplateRepositoryTest {
   void theTemplateCatalogueIsKept() throws Exception {
     Path database = database();
     Path template = template();
-    String netflix =
-        "INSERT INTO catalog_service (name, domain, category) VALUES ('Netflix', 'netflix.com', 'video')";
-    TestDatabase.execute(template, netflix);
-    TestDatabase.execute(database, netflix);
+    String insert =
+        "INSERT INTO catalog_service (name, domain, category, created_at, updated_at)"
+            + " VALUES (?, 'hulu.com', 'video', ?, ?)";
+    TestDatabase.execute(template, insert, "Hulu", Rows.TS, Rows.TS);
+    TestDatabase.execute(database, insert, "Hulu (mine)", Rows.TS, Rows.TS);
+    List<List<@Nullable Object>> seeded = TestDatabase.table(template, "catalog_service");
 
     restore(database, template);
 
-    assertThat(TestDatabase.table(database, "catalog_service"))
-        .containsExactly(List.of(1, "Netflix", "netflix.com", "video", "[]"));
+    assertThat(TestDatabase.table(database, "catalog_service")).isEqualTo(seeded);
+    assertThat(seeded).filteredOn(row -> "Hulu".equals(row.get(2))).hasSize(1);
   }
 
   @Test

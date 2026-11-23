@@ -3,7 +3,7 @@ contract/generated/
 frontend/src/routeTree.gen.ts
 backend-fastapi/
 backend-spring/
-db/
+db/migrations/
 docs/
 CLAUDE.md
 .claude/

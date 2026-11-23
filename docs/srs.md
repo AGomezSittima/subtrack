@@ -21,6 +21,9 @@ Subtrack is a local, single-user app to track subscriptions, record their paymen
 | Ends on | The last day of access of a cancelled subscription; no payments on or after it |
 | Archive | Hide a subscription from lists, totals and reminders while keeping its payment history |
 | Passcode | Optional secret that locks the app; it protects against someone using an open computer, not against reading the data file |
+| Catalogue service | A known service with its typical plans, used to prefill new subscriptions |
+| Built-in service | A catalogue service shipped with the app, identified by a stable key; it can be edited and hidden, never deleted |
+| User service | A catalogue service the user added; it can be edited and deleted |
 
 ## Overall description
 
@@ -48,7 +51,7 @@ IDs (FR-x) are meant to be referenced from tests and commits in both backends.
 ### Subscriptions
 
 - **FR-1** Create, edit and delete a subscription: name, category, plan name, price, billing interval (count + unit: day, week, month, year), anchor date, optional trial end date, payment method label, website, cancel URL, notes.
-- **FR-2** Pick the service from a catalogue to prefill name, category, website and logo; free text is always allowed.
+- **FR-2** Pick the service from the catalogue to prefill name, category, website, logo and plan (name, interval, and price when the plan has one); free text is always allowed. The catalogue is only a template for new subscriptions: changing it never changes existing ones.
 - **FR-3** Change status: trial, active, paused, cancelled. Cancelling records the cancellation date and an access end date (ends on), which can be a year or more later (e.g. a yearly Proton plan cancelled early); the subscription shows "Ends on \<date>" until then. Paused subscriptions generate no payments or renewal reminders while paused.
 - **FR-4** Show the next renewal date and the monthly-equivalent cost for each subscription.
 - **FR-5** List subscriptions with filter (status, category) and sort (next renewal, cost, name).
@@ -56,6 +59,15 @@ IDs (FR-x) are meant to be referenced from tests and commits in both backends.
 - **FR-28** Archive a subscription: it disappears from lists, totals and reminders, but its payments stay in spending history. Archiving also stops payment generation and auto-confirm and removes its future expected payments; unarchiving generates payments again from that day on (BR-27). Archived subscriptions can be listed and restored.
 - **FR-29** Deleting a subscription first shows a warning with how many payments and how much past spend will disappear from history, and offers to archive instead.
 - **FR-46** When the payment method label or the notes look like sensitive data (a full card number or an IBAN), the form shows a warning recommending a short label such as "Visa ··4417". The warning does not block saving.
+
+### Catalogue
+
+- **FR-47** Add your own catalogue services: name, optional website domain, category and plans.
+- **FR-48** Edit any catalogue service, built-in ones included: name, domain, category and plans.
+- **FR-49** Hide a built-in service and show it again. Hidden services are not offered when picking a service, but can still be listed.
+- **FR-50** Delete your own catalogue services; subscriptions created from them stay, unlinked. Built-in services can't be deleted, only hidden.
+- **FR-51** Any catalogue plan can have an optional price, entered by the user, that prefills new subscriptions. Built-in services ship without prices.
+- **FR-52** App updates only add built-in services that aren't installed yet. They never change, show again or remove a service, so nothing the user edited or hid is overwritten.
 
 ### Price history
 
@@ -88,7 +100,7 @@ IDs (FR-x) are meant to be referenced from tests and commits in both backends.
 - **FR-21** Upcoming payments in the next 7 and 30 days, with total.
 - **FR-22** Spend over time by month: actual (paid) for the past, projected (expected) for the coming months.
 - **FR-23** Planned vs actual per month, and count of skipped/failed payments.
-- **FR-24** Yearly vs monthly comparison when a subscription's catalogue entry lists both plans.
+- **FR-24** Yearly vs monthly comparison when a subscription's catalogue entry has a monthly and a yearly plan with the same plan name, both with a price (FR-51).
 
 ### Data
 
@@ -126,16 +138,20 @@ The information the system keeps, independent of how it is stored (the schema is
 
 | Concept | Information |
 | --- | --- |
-| Catalogue service | Name, website domain, category, typical plans with price and interval |
+| Catalogue service | Name, website domain (optional), category, typical plans with interval and optional price, built-in or user-created, hidden (built-ins only) |
 | Subscription | Service, category, plan, current price, billing interval, anchor date, status, trial end, cancellation date, ends on, pause date, resume date, archived, unarchive date, payment method label, auto-confirm, reminder override, website, cancel link, notes |
 | Price change | New price and the date it takes effect |
 | Payment | Due date, expected amount, paid amount and date, status (expected, paid, skipped, failed), origin (scheduled, backfill, manual), note |
 | Notification | Type, severity, related subscription or payment, message parameters (the text is rendered in the user's language), date it fired, read or unread |
 | Settings | Reminder defaults, payment horizon, logo service key, language, theme, font size, reduced motion, first day of week, passcode (stored only in a form that cannot be reversed), lock policy |
 
+**Categories:** music, video, vpn, cloud, ai, software, domains, gaming, news, education, other.
+
 ### Initial catalogue
 
-The catalogue ships with mainstream services, starting with: Cloudflare Domains, Spotify, Bitwarden, Proton VPN, Claude (Anthropic), ChatGPT (OpenAI), and similar. Plans and prices per service are still to be researched (see open questions).
+The app ships with 54 built-in services across the categories (music, video, VPN, cloud storage, AI, software, domain registrars, gaming and education), with their plan names and billing intervals but no prices: prices differ by country and change often, so the user enters them (FR-51). The list lives in the repository and only grows; a later version can add services but never changes the ones already shipped (FR-52).
+
+Domain names have no special model: each domain is its own subscription, picked from its registrar's catalogue entry (for example Cloudflare Registrar, yearly).
 
 ## Business rules
 
@@ -241,9 +257,10 @@ These rules are the shared core of both backends. Each one becomes a test case t
 | 2026-11-21 | Allocation ties | Earlier part first, parts in a fixed key or id order (BR-26) |
 | 2026-11-21 | Archived subscriptions | No generation, reminders or auto-confirm; future expected payments removed (FR-28, BR-27) |
 | 2026-11-21 | Trial end date | Required while in trial (BR-28) |
+| 2026-11-23 | Catalogue content and updates | 54 built-in services without prices, editable and hideable by the user; updates only add new services (FR-2, FR-47 to FR-52) |
+| 2026-11-23 | Domain names | One subscription per domain, from the registrar's catalogue entry |
 
 **Open questions**
 
-- [ ] Catalogue: plans and prices for each initial service, and how the catalogue is kept up to date. To be discussed separately.
 - [ ] Visual identity: palette, typography and component look. To be discussed separately.
 - [ ] Exact versions and CI platform. Decided 2026-11-12, recorded in the SDD (Node 26, TypeScript 6.0, Python 3.14, Java 25, Spring Boot 4.1.1, GitHub Actions).

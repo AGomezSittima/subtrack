@@ -155,18 +155,21 @@ Both backends listen on port 8000 inside the network and serve everything under 
 
 Seven SQLite tables, all `STRICT` (a column only ever holds its declared type, so text can't slip into an `INTEGER` money column and pass its `>= 0` check). Money is `INTEGER` cents with `CHECK (… >= 0)`, dates are ISO `TEXT` (`YYYY-MM-DD`), timestamps are UTC ISO `TEXT`, each with the format checks under Date and timestamp storage. Every table has `id INTEGER PRIMARY KEY`, plus `created_at` and `updated_at` where rows change. Timestamp columns have no `DEFAULT`: backends write them from their injected clock. Closed sets (statuses, units, types, categories) are `CHECK … IN (…)`; adding a value later needs a migration that rebuilds the table, since SQLite can't alter a `CHECK`.
 
-Categories are a closed set of codes that the frontend translates: `music`, `video`, `vpn`, `cloud`, `ai`, `software`, `domains`, `other`.
+Categories are a closed set of codes that the frontend translates: `music`, `video`, `vpn`, `cloud`, `ai`, `software`, `domains`, `gaming`, `news`, `education`, `other`.
 
 ### catalog\_service
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| name | text, unique | "Spotify" |
-| domain | text | "spotify.com", key for the logo |
+| builtin\_key | text, unique, nullable, CHECK lowercase letters, digits and `-` | stable key of a built-in (`spotify`); null for a user entry |
+| name | text | "Spotify"; not unique, the key is the identity |
+| domain | text, nullable | "spotify.com", key for the logo |
 | category | text, CHECK in the category codes |  |
-| default\_plans | JSON text, CHECK JSON array | `[{"plan":"Individual","price_cents":1199,"interval_count":1,"interval_unit":"month"}]`, same interval shape as subscriptions |
+| default\_plans | JSON text, CHECK JSON array | `[{"plan":"Individual","price_cents":1199,"interval_count":1,"interval_unit":"month"}]`, same interval shape as subscriptions; `price_cents` may be null |
+| hidden | int 0/1 | default 0; CHECK only built-ins can be 1 |
+| created\_at, updated\_at | timestamp |  |
 
-Catalogue rows change only through migrations, so the table has no timestamps. Catalogue seeds insert explicit ids, because exports reference `catalog_service_id`.
+Every row belongs to the user once installed: built-ins can be edited and hidden, user entries edited and deleted ([ADR 0007](adr/0007-catalogue-ownership.md)). Ids are always assigned by SQLite. Plans are stored in one canonical form, written identically by both backends and the generator: compact JSON, keys in the order `plan`, `price_cents`, `interval_count`, `interval_unit`, `price_cents` always present. A `CHECK` can't look inside the JSON (no subqueries), so its shape is validated by the API and by `just lint`.
 
 ### subscription
 
@@ -254,7 +257,7 @@ Sessions live in the database, so switching backend profile keeps you unlocked. 
 
 ### Indexes
 
-Besides the unique constraints above (`catalog_service.name`, `price_history (subscription_id, effective_from)`, `notification.dedupe_key`, `setting.key`, `session.token_hash`):
+Besides the unique constraints above (`catalog_service.builtin_key`, `price_history (subscription_id, effective_from)`, `notification.dedupe_key`, `setting.key`, `session.token_hash`):
 
 | Index | Serves |
 | --- | --- |
@@ -268,8 +271,10 @@ Besides the unique constraints above (`catalog_service.name`, `price_history (su
 
 ### Migrations and ownership
 
-- `db/migrations/V1__init.sql` creates the schema and the default settings; `V2__catalog_seed.sql` is reserved for the initial catalogue and has no rows until its content is decided (SRS open question); later changes are new `Vn__` files.
+- `db/migrations/V1__init.sql` creates the schema and the default settings; later changes are new `Vn__` files. `V2__catalog_seed.sql` was reserved for the catalogue and stays empty: it is applied, so editing it would break Flyway's checksum. The built-ins arrive in V5.
 - `V3__trial_end_date_and_resume_dates.sql` rebuilds `subscription` to add the trial check and the `resumed_on` and `unarchived_on` columns. SQLite can't add a table `CHECK` with `ALTER TABLE`, so it follows SQLite's documented rebuild: create the new table, copy, drop, rename, recreate the index. That procedure needs foreign keys off, or dropping the old table would cascade to `price_history` and `payment`. Flyway runs each migration in a transaction, where `PRAGMA foreign_keys = OFF` has no effect. But Flyway's sqlite-jdbc connection already leaves foreign keys off (checked with the pinned Flyway image), so the rebuild is safe. The migration starts by inserting `pragma_foreign_keys` into a temporary table whose `CHECK` requires 0, so it aborts before touching data if foreign keys are ever on. BEFORE INSERT/UPDATE triggers with `RAISE(ABORT, …)` would have avoided the rebuild, but they would keep the rule outside the table definition and wouldn't check existing rows. The test helper applies migrations with foreign keys off, like Flyway.
+- `V4__catalogue_ownership_and_categories.sql` rebuilds `catalog_service` (adds `builtin_key`, `hidden` and the timestamps, makes `domain` nullable, drops the unique name) and `subscription` (the `gaming`, `news` and `education` categories), with the same procedure and foreign-key guard as V3. Existing catalogue rows become user entries, timestamped with the migration time.
+- **Built-in catalogue.** `db/catalog/catalog.json` lists the built-ins (key, name, domain, category, plans without prices), validated against `db/catalog/catalog.schema.json`. `just catalog-migration` (`db/scripts/catalog-migration.ts`) applies the existing migrations to an in-memory database, and writes `V<next>__catalog_builtins.sql` with one `INSERT … ON CONFLICT (builtin_key) DO NOTHING` per key not installed yet, timestamped with the migration time and without ids. `V5__catalog_builtins.sql` is the first, with 54 services. The file only grows: `just lint` (`db/scripts/check-catalog.ts`) fails when the JSON is invalid, when one of its keys isn't installed by the migrations, when an installed key is gone from it, or when an entry differs from what its migration inserted ([ADR 0007](adr/0007-catalogue-ownership.md)). Both scripts use Node's built-in `node:sqlite`.
 - `backend-fastapi/tests/integration/test_migrations.py` applies every migration to a fresh SQLite file (fixture `migrated_db` in `tests/conftest.py`, reused by repository tests) and checks the constraints.
 - Only the Flyway `migrate` container changes the schema. Spring runs with Flyway disabled and `ddl-auto=validate`; FastAPI never calls `create_all`. A mismatch fails at startup.
 - Every connection sets `PRAGMA foreign_keys = ON` (off by default in SQLite), `journal_mode = WAL` and a `busy_timeout` of 5 s. Each backend opens connections in one place: FastAPI `persistence/engine.py` (a SQLAlchemy `connect` event), Spring `persistence/DataSourceConfig` (sqlite-jdbc's `SQLiteConfig` under Hikari).
@@ -295,7 +300,7 @@ Both backends write the same ISO text (NFR-9); neither relies on driver defaults
 - **FastAPI**: `TypeDecorator`s `IsoDate` and `UtcTimestamp`, not SQLAlchemy's `Date` and `DateTime`, so both kinds go through the same strict code.
 - **Parsing** is strict in both (`persistence/isotext.py`, `IsoText`): the shape, then a calendar check (year 0001 or later, seconds 00 to 59). A non-canonical value in the database fails to read instead of being guessed. Timestamps are truncated to milliseconds on write.
 - **API**: the same text on the wire. Responses write timestamps with milliseconds (`2026-11-10T15:18:00.000Z`, which neither framework does by default), and request timestamps are checked by the same parser (issue code `format`).
-- **Test**: the integration suite has a cross-backend check: create data through one backend, restart on the other profile, read it back identically.
+- **Test**: `just test-cross` writes catalogue data through one backend, switches the same test stack to the other profile, and reads it back identically (ids, timestamps, plans), in both directions (Testing).
 
 ## API contract
 
@@ -303,7 +308,10 @@ REST + JSON under `/api/v1`, written first in `contract/openapi.yaml`. Both back
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | /catalog | Catalogue services, `?q=` search |
+| GET | /catalog | Catalogue services, `?q=` search; hidden built-ins only with `?include_hidden=true` |
+| POST | /catalog | Add a user entry (FR-47) |
+| PATCH | /catalog/{id} | Edit any entry; `hidden` for built-ins (FR-48, FR-49, FR-51) |
+| DELETE | /catalog/{id} | Delete a user entry; built-ins are 409 (FR-50) |
 | GET | /subscriptions | List, `?status=&category=&sort=` |
 | POST | /subscriptions | Create; `backfill: true` generates past payments as paid (FR-27) |
 | GET | /subscriptions/{id} | Detail incl. next renewal, monthly equivalent, payment count and total paid (for the delete warning) |
@@ -346,11 +354,12 @@ The `backend` field in `/health` lets the frontend show which implementation is 
 
 `contract/openapi.yaml` is the detailed source; these are the decisions it settles.
 
-- **Conventions.** Every object has `additionalProperties: false`. Lists come wrapped (`{"items": [...]}`) so fields can be added later. A subscription always carries its derived fields (`next_renewal_date`, `monthly_equivalent_cents`, `yearly_equivalent_cents`, `payment_count`, `total_paid_cents`), in lists too. A payment carries `subscription_name`. `PATCH` changes only the fields sent; `null` clears a nullable field. Text limits (`maxLength`) count Unicode code points, as JSON Schema does (Java must use `codePointCount`, not `length()`).
+- **Conventions.** Every object has `additionalProperties: false`. Lists come wrapped (`{"items": [...]}`) so fields can be added later. A subscription always carries its derived fields (`next_renewal_date`, `monthly_equivalent_cents`, `yearly_equivalent_cents`, `payment_count`, `total_paid_cents`), in lists too. A payment carries `subscription_name`. `PATCH` changes only the fields sent; `null` clears a nullable field, and `null` on a non-nullable one is a `type` issue. Query strings follow Starlette's parsing in both backends: a chunk without a name is ignored and the last repeated value wins (Spring parses the raw query string itself, since Tomcat rejects malformed chunks and Spring joins repeated values). Text limits (`maxLength`) count Unicode code points, as JSON Schema does (Java must use `codePointCount`, not `length()`).
 - **Security.** One cookie scheme, `subtrack_session`, applied globally; `security: []` only on `/health`, `/auth/status`, `/auth/unlock` and the test-mode endpoints `/admin/clock` and `/admin/reset`.
 - **Status changes** (`POST /subscriptions/{id}/status`, body `{status, date?, ends_on?}`; `date` defaults to today and is only for pause and cancel, `ends_on` only for cancel). Allowed: trial → active, paused, cancelled; active → paused, cancelled; paused → active, cancelled; cancelled → active. Anything else is 409 `invalid-status-transition`.
 - **Payments.** A manual payment (`POST /payments`, `{subscription_id, paid_cents, paid_date, note?}`) is stored as `paid`, source `manual`, with `due_date = paid_date` and `expected_cents = paid_cents`. Confirming defaults `paid_cents` to `expected_cents` and `paid_date` to the due date. Confirm, skip and fail apply only to `expected` payments (otherwise 409 `payment-not-expected`).
 - **Statistics.** Breakdowns are ordered by exact monthly equivalent descending, then key, and allocated by largest remainder with the parts in key order: categories by code, payment methods by label with no label last, subscriptions by id (BR-26; equal remainders go to the earlier part). The display order doesn't affect the allocation. `/stats/monthly` groups payments by the month of their due date: `planned_cents` is every payment's `expected_cents`, `actual_cents` the paid ones' `paid_cents`.
+- **Catalogue.** Entries carry `builtin` and `hidden`, never the key. `GET /catalog` sorts by `name COLLATE NOCASE`, then id, and `q` matches with `instr(lower(name), lower(q))`: both run in SQL, so both backends match the same rows (case-insensitive for ASCII letters only). `include_hidden` accepts only `true` and `false`. A plan's `price_cents` is always present in responses, null when unset, and may be left out in requests. `PATCH` replaces `plans` as a whole and sets `updated_at` on every successful call. `hidden: true` on a user entry is 422 `invalid` on `/hidden`; a plan with the same name and interval as an earlier one in the list is 422 `invalid` on `/plans/<i>`. Deleting a built-in is 409 `builtin-service-not-deletable`; deleting a user entry unlinks its subscriptions. Changing the catalogue never changes an existing subscription.
 - **Passcode.** `^[A-Za-z0-9]{6,128}$`. Setting or changing it deletes other sessions and returns a fresh session cookie. A missing or wrong `current` counts as a failed attempt.
 
 ### Errors
@@ -369,6 +378,7 @@ RFC 9457 problem JSON with media type `application/problem+json`: `type`, `title
 | `payment-not-expected` | 409 | Confirming, skipping or failing a payment that is not `expected` |
 | `payment-not-paid` | 409 | Editing `paid_cents` or `paid_date` of a payment that is not `paid` |
 | `price-change-exists` | 409 | A price change already takes effect on that date |
+| `builtin-service-not-deletable` | 409 | Deleting a built-in catalogue service; it can only be hidden |
 | `unsupported-media-type` | 415 | The body is not `application/json` |
 | `validation-error` | 422 | Invalid parameters or body |
 | `unsupported-format-version` | 422 | Import of an unknown (newer) export format |
@@ -406,8 +416,10 @@ Export files outlive the code, so they carry their own version:
 - `format_version` changes only when the file structure changes, independently of the API version and the database migrations.
 - Import reads every format version it knows, converting older ones step by step, and rejects unknown (newer) versions with a clear error.
 - Exports never include the passcode hash, sessions or test-mode state; import never overwrites them.
-- `data` (format version 1) holds `subscriptions`, `price_history`, `payments` and `notifications` (read state included) as stored rows with their ids, plus the user `settings`. It leaves out `failed_attempts`, `retry_after` and `last_scheduler_run`, so catch-up after an import starts from the importing app's own state. The file's row schemas (`Export*` in the contract) are kept apart from the API resources, so an API change never changes the file format by accident.
-- Import replaces all data in one transaction: it deletes subscriptions, price history, payments and notifications, inserts the file's rows with their ids, and applies its settings. A `catalog_service_id` that doesn't exist becomes null.
+- `data` (format version 1) holds `catalog`, `subscriptions`, `price_history`, `payments` and `notifications` (read state included), plus the user `settings`. Subscriptions, price history, payments and notifications are stored rows with their ids. It leaves out `failed_attempts`, `retry_after` and `last_scheduler_run`, so catch-up after an import starts from the importing app's own state. The file's row schemas (`Export*` in the contract) are kept apart from the API resources, so an API change never changes the file format by accident.
+- `catalog` has no ids, since ids differ between installs ([ADR 0007](adr/0007-catalogue-ownership.md)). It lists every built-in as `{builtin_key, name, domain, category, plans, hidden, created_at, updated_at}`, so their edits and hidden state travel, and every user entry as `{ref, name, domain, category, plans, created_at, updated_at}`, where `ref` is a number local to the file. A subscription references its entry with `catalog: {"builtin_key": "spotify"}`, `catalog: {"ref": 3}` or `catalog: null`, instead of `catalog_service_id`.
+- Import replaces all data in one transaction: it deletes subscriptions, price history, payments and notifications, inserts the file's rows with their ids, and applies its settings. For the catalogue, each built-in in the file updates the row with the same key, or is inserted as a built-in when this app doesn't have that key yet (a later catalogue migration then leaves it alone); built-ins missing from the file stay as they are. User entries are replaced: the existing ones are deleted and the file's inserted, mapping each `ref` to its new id. Subscription references are resolved by key or `ref`; one that doesn't resolve becomes null.
+- The contract's `Export*` schemas still have `catalog_service_id`; they change to this design with the export slice. No version 1 file has been produced yet, so the version stays 1.
 - `GET /export?format=csv` is one flat file for spreadsheets, not a backup, and can't be imported: one row per payment (archived subscriptions included) with columns `payment_id, subscription_id, subscription_name, category, payment_method, due_date, expected_cents, paid_cents, paid_date, status, source, note`. RFC 4180, UTF-8, header row, empty fields for null, amounts in cents.
 
 ## Backend design
@@ -458,7 +470,7 @@ The plumbing every slice uses, split the same way in both backends:
 
 - **Transactions.** A Python service takes a `Transaction`, a context manager that yields the repositories bound to one SQLAlchemy session and commits or rolls back. Spring services use `@Transactional`. The template restore is the one exception: SQLite can't `ATTACH` inside a transaction, so the repository manages its own connection and transaction.
 - **Test-mode beans.** The admin routes, the settable clock and the template repository exist only when `SUBTRACK_TEST_MODE=true` (FastAPI mounts the router conditionally; Spring uses `@ConditionalOnBooleanProperty`). Other paths answer 404 as unknown routes.
-- **Strict JSON.** Pydantic request models use `extra="forbid"` and `strict=True`. Jackson fails on unknown properties and doesn't coerce scalars or accept floats as integers.
+- **Strict JSON.** Pydantic request models use `extra="forbid"` and `strict=True`. Jackson fails on unknown properties and doesn't coerce scalars or accept floats as integers. A missing field is `required` and an explicit `null` on a non-nullable field is `type`: Pydantic tells them apart with `MISSING` for optional `PATCH` fields; Spring request bodies are field-bound classes rather than records (Jackson runs absent record components through the null handler) with `@JsonSetter(nulls = FAIL)` on non-nullable fields. Lengths count code points (`@MinCodePoints`, `@MaxCodePoints`), and code sets are checked with `@OneOf`. Path ids and query parameters are parsed by hand in both backends (`api/parameters.py`; `PathIds`, `QueryString`, `QueryParameters`).
 
 | Concern | FastAPI | Spring Boot |
 | --- | --- | --- |
@@ -609,7 +621,9 @@ Testing priority is **end to end > integration > unit**, on a base of static ana
 - Reset attaches the template. Then, in one transaction with `PRAGMA defer_foreign_keys = ON` (foreign keys stay on), it deletes every table's rows and copies the template's rows back. The table list comes from the template's `sqlite_master`, minus `flyway_schema_history` and SQLite's own tables, so a new table needs no code change. Ids start again from 1.
 - Reset also unpins the clock, so each test sets the date it needs.
 
-**Shared API suite.** `e2e/support/` holds a client typed from `@subtrack/contract` (openapi-fetch), an automatic fixture that calls `POST /admin/reset` before each test, and `setClock(api, Temporal.Instant)`. Cases the test stack can't reach (test mode off, a locked database, reset effects on rows) are covered by the backend tests, which write the passcode and session rows directly.
+**Shared API suite.** Tests run one at a time (`workers: 1`), since they share the stack's single database. `e2e/support/` holds a client typed from `@subtrack/contract` (openapi-fetch), an automatic fixture that calls `POST /admin/reset` before each test, and `setClock(api, Temporal.Instant)`. Cases the test stack can't reach (test mode off, a locked database, reset effects on rows) are covered by the backend tests, which write the passcode and session rows directly.
+
+**Cross-backend check.** `just test-cross` runs the Playwright projects `cross-write` and `cross-read` (`e2e/cross/`) on one test stack: write with fastapi, stop it, start spring on the same volume, read; then write with spring and read with fastapi. The writer saves the responses to a state file and the reader compares them; `cross-read` turns off the automatic reset (`resetDatabase: false`). nginx resolves `api` per request, so the switch needs no restart of `web`. It is part of `just test` and has its own CI job.
 
 **Contract checks.** Schemathesis (pinned image, `schemathesis` service in the test overlay) runs after the API suite in `just test-api` (alone: `just test-contract`). It only covers operations listed in `e2e/schemathesis/schemathesis.toml`, and each slice adds its own there. The `ignored_auth` check and the generation of security parameters are off, because the test stack sets no passcode and is open by design.
 
@@ -625,7 +639,7 @@ The `e2e/` folder holds both suites: `e2e/ui/` for browser flows and `e2e/api/` 
 subtrack/
 ├── .github/workflows/       ci.yml (every push), e2e.yml (main, staging)
 ├── contract/                openapi.yaml, shared BR test cases, generated types (pnpm package)
-├── db/migrations/           SQL migrations, the only schema owner
+├── db/                      migrations/ (SQL, the only schema owner), catalog/ (built-ins), scripts/ (generator, check)
 ├── frontend/                React + Vite app
 ├── backend-fastapi/         same module names as backend-spring
 ├── backend-spring/          api, service, billing, repository, persistence, scheduler, security, clock, config, cli
@@ -635,7 +649,7 @@ subtrack/
 ├── docker-compose.yml       normal stack, profiles fastapi and spring
 ├── docker-compose.test.yml  test overlay: enables test mode
 ├── justfile                 single entry point for commands
-└── pnpm-workspace.yaml      frontend, e2e, contract
+└── pnpm-workspace.yaml      frontend, e2e, contract, db
 ```
 
 Once the repository exists, its README files are the authoritative description of the folder structure; this list only covers the top level.

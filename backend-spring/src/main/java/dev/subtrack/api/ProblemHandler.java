@@ -1,5 +1,8 @@
 package dev.subtrack.api;
 
+import dev.subtrack.service.BuiltinNotDeletableException;
+import dev.subtrack.service.InvalidFieldsException;
+import dev.subtrack.service.NotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import java.util.ArrayList;
@@ -32,21 +35,46 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProblemHandler.class);
 
-  private static final Map<String, IssueCode> CONSTRAINT_CODES =
-      Map.of(
-          "NotNull", IssueCode.REQUIRED,
-          "ApiTimestamp", IssueCode.FORMAT,
-          "Pattern", IssueCode.PATTERN,
-          "Min", IssueCode.MINIMUM,
-          "Max", IssueCode.MAXIMUM);
+  private record ConstraintIssue(IssueCode code, @Nullable String limit) {}
 
-  private static final Map<IssueCode, String> CONSTRAINT_PARAMS =
-      Map.of(IssueCode.MINIMUM, "value", IssueCode.MAXIMUM, "value");
+  private static final Map<String, ConstraintIssue> CONSTRAINTS =
+      Map.of(
+          "NotNull", new ConstraintIssue(IssueCode.REQUIRED, null),
+          "ApiTimestamp", new ConstraintIssue(IssueCode.FORMAT, null),
+          "Pattern", new ConstraintIssue(IssueCode.PATTERN, null),
+          "OneOf", new ConstraintIssue(IssueCode.ENUM, null),
+          "Min", new ConstraintIssue(IssueCode.MINIMUM, "value"),
+          "Max", new ConstraintIssue(IssueCode.MAXIMUM, "value"),
+          "MinCodePoints", new ConstraintIssue(IssueCode.MIN_LENGTH, "value"),
+          "MaxCodePoints", new ConstraintIssue(IssueCode.MAX_LENGTH, "value"),
+          "Size", new ConstraintIssue(IssueCode.MAX_LENGTH, "max"));
+
+  private static final ConstraintIssue UNKNOWN_CONSTRAINT =
+      new ConstraintIssue(IssueCode.INVALID, null);
 
   @ExceptionHandler(ProblemException.class)
   ResponseEntity<Object> problem(ProblemException exception) {
     return Problems.response(
         exception.type(), exception.getMessage(), exception.errors(), HttpHeaders.EMPTY);
+  }
+
+  @ExceptionHandler(NotFoundException.class)
+  ResponseEntity<Object> notFound() {
+    return Problems.response(ProblemType.NOT_FOUND);
+  }
+
+  @ExceptionHandler(BuiltinNotDeletableException.class)
+  ResponseEntity<Object> builtinNotDeletable() {
+    return Problems.response(ProblemType.BUILTIN_SERVICE_NOT_DELETABLE);
+  }
+
+  @ExceptionHandler(InvalidFieldsException.class)
+  ResponseEntity<Object> invalidFields(InvalidFieldsException exception) {
+    List<ValidationIssue> issues =
+        exception.pointers().stream()
+            .map(pointer -> ValidationIssue.body(pointer, IssueCode.INVALID))
+            .toList();
+    return Problems.response(ProblemType.VALIDATION_ERROR, null, issues, HttpHeaders.EMPTY);
   }
 
   @ExceptionHandler(Exception.class)
@@ -141,16 +169,18 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
 
   private static ValidationIssue issue(FieldError error) {
     String constraint = error.getCode();
-    IssueCode code =
+    ConstraintIssue mapped =
         constraint == null
-            ? IssueCode.INVALID
-            : CONSTRAINT_CODES.getOrDefault(constraint, IssueCode.INVALID);
+            ? UNKNOWN_CONSTRAINT
+            : CONSTRAINTS.getOrDefault(constraint, UNKNOWN_CONSTRAINT);
+    IssueCode code = mapped.code();
     return new ValidationIssue(
-        "body", JsonPointers.fromFieldPath(error.getField()), code, params(code, error));
+        "body", JsonPointers.fromFieldPath(error.getField()), code, params(mapped, error));
   }
 
-  private static @Nullable Map<String, Object> params(IssueCode code, FieldError error) {
-    String attribute = CONSTRAINT_PARAMS.get(code);
+  private static @Nullable Map<String, Object> params(ConstraintIssue mapped, FieldError error) {
+    IssueCode code = mapped.code();
+    String attribute = mapped.limit();
     if (attribute == null || !error.contains(ConstraintViolation.class)) {
       return null;
     }
