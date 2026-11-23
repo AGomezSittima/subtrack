@@ -24,7 +24,7 @@ def _display_zone(name: str) -> str:
 
 type ZoneShape = Annotated[
     str,
-    Field(min_length=1, max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"),
+    Field(max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"),
 ]
 type HomeTimeZone = Annotated[ZoneShape, AfterValidator(_known_zone)]
 type DisplayTimeZone = Annotated[ZoneShape, AfterValidator(_display_zone)]

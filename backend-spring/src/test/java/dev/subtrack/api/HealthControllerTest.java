@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import dev.subtrack.support.TestDatabase;
 import dev.subtrack.support.TestModeApiTest;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.json.JsonCompareMode;
 
@@ -15,13 +16,15 @@ class HealthControllerTest extends TestModeApiTest {
 
   @Test
   void healthReportsSpringBackend() throws Exception {
+    clock.pin(Instant.parse("2026-11-23T23:30:00Z"));
+
     mvc.perform(get("/api/v1/health"))
         .andExpect(status().isOk())
         .andExpect(
             content()
                 .json(
                     """
-                    {"status": "ok", "backend": "spring", "version": "0.1.0", "last_scheduler_run": null}
+                    {"status": "ok", "backend": "spring", "version": "0.1.0", "today": "2026-11-23", "last_scheduler_run": null}
                     """,
                     JsonCompareMode.STRICT));
   }

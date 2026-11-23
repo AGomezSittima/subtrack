@@ -11,7 +11,6 @@ import dev.subtrack.support.Rows;
 import dev.subtrack.support.TestDatabase;
 import dev.subtrack.support.TestModeApiTest;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -37,13 +36,12 @@ class AdminControllerTest extends TestModeApiTest {
   }
 
   @Test
-  void settingTheClockPinsNowAndToday() throws Exception {
+  void settingTheClockPinsNow() throws Exception {
     setClock("{\"now\": \"2026-03-28T23:30:00.000Z\"}")
         .andExpect(status().isNoContent())
         .andExpect(content().bytes(new byte[0]));
 
     assertThat(clock.instant()).isEqualTo(Instant.parse("2026-03-28T23:30:00Z"));
-    assertThat(LocalDate.now(clock)).isEqualTo(LocalDate.of(2026, 3, 29));
   }
 
   @Test
