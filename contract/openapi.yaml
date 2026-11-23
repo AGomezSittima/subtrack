@@ -1228,9 +1228,10 @@ components:
       minLength: 1
       maxLength: 200
     PlanName:
+      description: At least one character that isn't Unicode whitespace.
       type: string
-      minLength: 1
       maxLength: 200
+      pattern: &non-blank "[^\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]"
     Domain:
       description: Website domain, lowercase, used to load the logo.
       type: string
@@ -1238,17 +1239,24 @@ components:
       pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
       examples: ["spotify.com"]
     PaymentMethodLabel:
-      description: "Free label such as `Visa ··4417`."
+      description: "Free label such as `Visa ··4417`; not blank."
       type: string
-      minLength: 1
       maxLength: 100
+      pattern: *non-blank
     WebUrl:
       type: string
       maxLength: 2048
       pattern: "^https?://\\S+$"
     Note:
+      description: Not blank; send null for no note.
       type: string
       maxLength: 2000
+      pattern: *non-blank
+    LogoDevToken:
+      description: Logo.dev publishable key, safe in client code; not blank.
+      type: string
+      maxLength: 200
+      pattern: *non-blank
     Passcode:
       description: At least 6 letters or digits.
       type: string
@@ -2226,11 +2234,9 @@ components:
           minimum: 1
           maximum: 366
         logo_dev_token:
-          description: Logo.dev publishable key, safe in client code; null = monograms only.
+          description: null = monograms only.
           anyOf:
-            - type: string
-              minLength: 1
-              maxLength: 200
+            - $ref: "#/components/schemas/LogoDevToken"
             - type: "null"
         locale:
           description: UI language; null = follow the browser.
@@ -2260,11 +2266,10 @@ components:
             - $ref: "#/components/schemas/TimeZoneName"
             - type: "null"
         display_time_zone:
-          description: Zone for showing times of day; `device` follows the browser.
+          description: Zone for showing times of day; null = follow the device.
           anyOf:
-            - type: string
-              const: device
             - $ref: "#/components/schemas/TimeZoneName"
+            - type: "null"
 
     ClockSet:
       type: object
@@ -2606,9 +2611,7 @@ components:
           maximum: 366
         logo_dev_token:
           anyOf:
-            - type: string
-              minLength: 1
-              maxLength: 200
+            - $ref: "#/components/schemas/LogoDevToken"
             - type: "null"
         locale:
           anyOf:
@@ -2636,6 +2639,5 @@ components:
             - type: "null"
         display_time_zone:
           anyOf:
-            - type: string
-              const: device
             - $ref: "#/components/schemas/TimeZoneName"
+            - type: "null"
