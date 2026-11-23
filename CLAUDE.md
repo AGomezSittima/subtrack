@@ -21,7 +21,7 @@ If a request conflicts with these docs, say so and ask before proceeding. A chan
 | Backend A | Python 3.14, FastAPI, Pydantic, SQLAlchemy, uv |
 | Backend B | Java 25, Spring Boot 4.1.1, Spring Data JPA, Spring Security, Gradle (Kotlin DSL) |
 | Database | SQLite file on a Docker volume; schema owned by Flyway SQL migrations |
-| Node | 26 LTS, pnpm workspaces (frontend, e2e, contract) |
+| Node | 26 LTS, pnpm workspaces (frontend, e2e, contract, db) |
 | Tests | Playwright (UI + shared API suite), Schemathesis, pytest, JUnit 5, Vitest |
 | Runtime | Docker Compose; profiles `fastapi` and `spring`, one backend at a time |
 | CI | GitHub Actions: `ci.yml` (every push), `e2e.yml` (main, staging) |
@@ -33,6 +33,7 @@ Do not upgrade to TypeScript 7 or Python 3.15 unless a feature requires it. Pin 
 ```
 contract/          openapi.yaml (source of truth), cases/*.json (shared BR tests), generated types (@subtrack/contract)
 db/migrations/     Flyway SQL migrations — the ONLY place the schema changes
+db/catalog/        catalog.json: built-in catalogue services (append-only), turned into migrations by `just catalog-migration`
 frontend/          React + Vite app
 backend-fastapi/   src/subtrack/<module>/
 backend-spring/    src/main/java/dev/subtrack/<module>/
@@ -52,6 +53,8 @@ All commands go through the root `justfile`. Prefer these over calling tools dir
 - `just test-e2e` — full browser suite against both backends
 - `just lint` / `just fmt` — lint and format every part
 - `just gen` — regenerate types from `contract/openapi.yaml`
+- `just catalog-migration` — generate the next migration from new entries in `db/catalog/catalog.json`
+- `just test-cross` — write with one backend, read with the other, both directions
 
 If a recipe is missing, add it to the `justfile` rather than documenting a one-off command.
 
