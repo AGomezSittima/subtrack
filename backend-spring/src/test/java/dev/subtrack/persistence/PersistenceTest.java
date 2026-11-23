@@ -60,6 +60,30 @@ class PersistenceTest extends TestModeApiTest {
   }
 
   @Test
+  void catalogPlansAreStoredAsCanonicalJson() {
+    transactions.executeWithoutResult(status ->
+        entityManager.persist(
+            new CatalogServiceEntity(
+                "Café Ñu",
+                null,
+                "other",
+                List.of(
+                    new StoredPlan("Año", 1999L, 1, "year"),
+                    new StoredPlan("Mes", null, 1, "month")),
+                Instant.parse("2026-11-10T15:18:00Z"))));
+
+    assertThat(
+            TestDatabase.rows(
+                DATABASE,
+                "SELECT default_plans, hidden FROM catalog_service WHERE name = 'Café Ñu'"))
+        .containsExactly(
+            List.of(
+                "[{\"plan\":\"Año\",\"price_cents\":1999,\"interval_count\":1,\"interval_unit\":\"year\"},"
+                    + "{\"plan\":\"Mes\",\"price_cents\":null,\"interval_count\":1,\"interval_unit\":\"month\"}]",
+                0));
+  }
+
+  @Test
   void nonCanonicalStoredTextFailsToRead() {
     TestDatabase.executeIgnoringChecks(
         DATABASE, "UPDATE setting SET updated_at = '2026-11-10T15:18:00Z' WHERE key = 'theme'");
