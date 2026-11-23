@@ -7,7 +7,7 @@ from pydantic_core import PydanticCustomError
 from subtrack.persistence.isotext import format_timestamp, parse_timestamp
 
 FORMAT_ERROR = "subtrack_format"
-NON_BLANK = r"[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]"
+TRIMMED = r"^[^ \t\n\r](?:[\s\S]*[^ \t\n\r])?$"
 
 
 def _timestamp(value: object) -> datetime:
@@ -23,7 +23,7 @@ def _timestamp(value: object) -> datetime:
         ) from None
 
 
-type NonBlankText = Annotated[str, Field(pattern=NON_BLANK)]
+type TrimmedText = Annotated[str, Field(min_length=1, pattern=TRIMMED)]
 
 ApiTimestamp = Annotated[
     datetime,

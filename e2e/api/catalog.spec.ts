@@ -342,6 +342,18 @@ const createIssues: [string, object, ValidationIssue[]][] = [
     ],
   ],
   [
+    "a domain that is too long and isn't a lowercase hostname",
+    { ...valid, domain: `${"A".repeat(250)}.COM` },
+    [
+      {
+        location: "body",
+        pointer: "/domain",
+        code: "max_length",
+        params: { max_length: 253 },
+      },
+    ],
+  ],
+  [
     "an unknown category",
     { ...valid, category: "games" },
     [{ location: "body", pointer: "/category", code: "enum" }],
@@ -397,13 +409,54 @@ const createIssues: [string, object, ValidationIssue[]][] = [
         code: "maximum",
         params: { maximum: 366 },
       },
-      { location: "body", pointer: "/plans/0/plan", code: "pattern" },
+      {
+        location: "body",
+        pointer: "/plans/0/plan",
+        code: "min_length",
+        params: { min_length: 1 },
+      },
     ],
   ],
   [
     "a plan name of only whitespace",
     { ...valid, plans: [{ ...plan, plan: " \t\u00a0\u2028" }] },
     [{ location: "body", pointer: "/plans/0/plan", code: "pattern" }],
+  ],
+  [
+    "several invalid fields, each reported once by precedence",
+    {
+      name: " ".repeat(201),
+      domain: "A".repeat(254),
+      category: "games",
+      plans: [{ ...plan, plan: "", interval_count: 0 }],
+    },
+    [
+      { location: "body", pointer: "/category", code: "enum" },
+      {
+        location: "body",
+        pointer: "/domain",
+        code: "max_length",
+        params: { max_length: 253 },
+      },
+      {
+        location: "body",
+        pointer: "/name",
+        code: "max_length",
+        params: { max_length: 200 },
+      },
+      {
+        location: "body",
+        pointer: "/plans/0/interval_count",
+        code: "minimum",
+        params: { minimum: 1 },
+      },
+      {
+        location: "body",
+        pointer: "/plans/0/plan",
+        code: "min_length",
+        params: { min_length: 1 },
+      },
+    ],
   ],
   [
     "a plan whose name and interval repeat an earlier one",

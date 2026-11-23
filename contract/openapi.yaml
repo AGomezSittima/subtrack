@@ -1223,15 +1223,19 @@ components:
       type: integer
       minimum: 0
       maximum: 365
-    ServiceName:
+    TrimmedText:
+      description: "Not empty and no space, tab, line feed or carriage return at either end; stored exactly as sent."
       type: string
       minLength: 1
+      pattern: "^[^ \\t\\n\\r](?:[\\s\\S]*[^ \\t\\n\\r])?$"
+    ServiceName:
+      allOf:
+        - $ref: "#/components/schemas/TrimmedText"
       maxLength: 200
     PlanName:
-      description: At least one character that isn't Unicode whitespace.
-      type: string
+      allOf:
+        - $ref: "#/components/schemas/TrimmedText"
       maxLength: 200
-      pattern: &non-blank "[^\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]"
     Domain:
       description: Website domain, lowercase, used to load the logo.
       type: string
@@ -1239,24 +1243,24 @@ components:
       pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
       examples: ["spotify.com"]
     PaymentMethodLabel:
-      description: "Free label such as `Visa ··4417`; not blank."
-      type: string
+      description: "Free label such as `Visa ··4417`."
+      allOf:
+        - $ref: "#/components/schemas/TrimmedText"
       maxLength: 100
-      pattern: *non-blank
     WebUrl:
       type: string
       maxLength: 2048
       pattern: "^https?://\\S+$"
     Note:
-      description: Not blank; send null for no note.
-      type: string
+      description: May span several lines; send null for no note.
+      allOf:
+        - $ref: "#/components/schemas/TrimmedText"
       maxLength: 2000
-      pattern: *non-blank
     LogoDevToken:
-      description: Logo.dev publishable key, safe in client code; not blank.
-      type: string
+      description: Logo.dev publishable key, safe in client code.
+      allOf:
+        - $ref: "#/components/schemas/TrimmedText"
       maxLength: 200
-      pattern: *non-blank
     Passcode:
       description: At least 6 letters or digits.
       type: string
@@ -1303,7 +1307,7 @@ components:
           description: Developer-facing English explanation of this occurrence. Never displayed.
           type: string
         errors:
-          description: "Only with `validation-error`; at least one entry, each accurate. Every constraint failure is listed; for a structural failure (wrong type, unknown property) only the first may be."
+          description: "Only with `validation-error`; one entry per invalid field, the first of its failures in `code` order. Every invalid field is listed, except that after a wrong type or unknown property only the first may be."
           type: array
           minItems: 1
           items:
@@ -1327,19 +1331,19 @@ components:
           type: string
           examples: ["/price_cents"]
         code:
-          description: "What failed: `required`, `unknown_property`, `type`, `format` (date, timestamp or month), a JSON Schema keyword (`pattern`, `enum`, `minimum`, `maximum`, `min_length`, `max_length`), or `invalid` for a cross-field rule the operation describes."
+          description: "What failed, in precedence order: missing (`required`), wrong type (`unknown_property`, `type`), length (`min_length`, `max_length`), format (`format` for a date, timestamp or month, `pattern`, `enum`), range (`minimum`, `maximum`), then `invalid` for a rule the operation describes."
           type: string
           enum:
             - required
             - unknown_property
             - type
+            - min_length
+            - max_length
             - format
             - pattern
             - enum
             - minimum
             - maximum
-            - min_length
-            - max_length
             - invalid
         params:
           description: 'The limit that failed, for the message (e.g. `{"minimum": 1}`).'

@@ -7,13 +7,13 @@ public enum IssueCode {
   REQUIRED,
   UNKNOWN_PROPERTY,
   TYPE,
+  MIN_LENGTH,
+  MAX_LENGTH,
   FORMAT,
   PATTERN,
   ENUM,
   MINIMUM,
   MAXIMUM,
-  MIN_LENGTH,
-  MAX_LENGTH,
   INVALID;
 
   @JsonValue

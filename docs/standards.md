@@ -77,6 +77,15 @@ Rules:
 - Money is never a float. Format only at the edge with `Intl.NumberFormat` (`style: 'currency', currency: 'EUR'`).
 - In the database, dates are `YYYY-MM-DD` text and timestamps are UTC ISO text with milliseconds and `Z`. Never rely on a driver's default date storage.
 
+## Text
+
+Every text field (names, plan names, payment method labels, notes, tokens) follows one rule ([ADR 0010](adr/0010-trimmed-text.md)):
+
+- **Not empty, and no whitespace at either end.** Whitespace means exactly space (U+0020), tab (U+0009), line feed (U+000A) and carriage return (U+000D). Everything else is allowed, including spaces, tabs and line breaks inside the value and other Unicode spaces anywhere. A value of only those four characters is therefore invalid.
+- **The frontend trims; the backends reject.** The frontend trims those four characters from every text input before sending (`trimText`, never `String.prototype.trim`) and sends null for an optional field that is empty after trimming (`optionalText`). The backends never trim or otherwise change a value: an untrimmed one is a validation error, and what is stored is exactly what was sent.
+- **Spell the four characters out.** Each platform's `\s`, `isspace`, `strip` and `trim` cover a different set, so code uses the explicit list (`[ \t\n\r]`, `char(9, 10, 13, 32)`).
+- In the contract, a text field is `TrimmedText` plus its own `maxLength`; in the database, a text column has `CHECK (col <> '' AND trim(col, char(9, 10, 13, 32)) = col)`.
+
 ## TypeScript and React
 
 **TypeScript**

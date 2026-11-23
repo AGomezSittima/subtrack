@@ -7,7 +7,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/** Over-long values are left to {@code @MaxCodePoints}: Pydantic checks the length first. */
 @Target({
   ElementType.FIELD,
   ElementType.PARAMETER,
@@ -15,12 +14,10 @@ import java.lang.annotation.Target;
   ElementType.TYPE_USE
 })
 @Retention(RetentionPolicy.RUNTIME)
-@Constraint(validatedBy = NonBlankTextValidator.class)
-public @interface NonBlankText {
+@Constraint(validatedBy = TrimmedTextValidator.class)
+public @interface TrimmedText {
 
-  int maxCodePoints();
-
-  String message() default "must contain a character that is not whitespace";
+  String message() default "must not be empty or start or end with a space, tab or line break";
 
   Class<?>[] groups() default {};
 

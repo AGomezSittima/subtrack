@@ -6,7 +6,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 from pydantic_core import PydanticCustomError
 
 from subtrack.api.dependencies import settings_service
-from subtrack.api.types import NonBlankText
+from subtrack.api.types import TrimmedText
 from subtrack.clock.zones import zone_names
 from subtrack.service.settings import SettingsService, UserSettings
 
@@ -19,7 +19,7 @@ def _known_zone(name: str) -> str:
 
 type ZoneShape = Annotated[
     str,
-    Field(max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"),
+    Field(min_length=1, max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"),
 ]
 type TimeZoneName = Annotated[ZoneShape, AfterValidator(_known_zone)]
 type ReminderDays = Annotated[int, Field(ge=0, le=365)]
@@ -33,7 +33,7 @@ class SettingsBody(BaseModel):
     yearly_reminder_days: ReminderDays
     ending_reminder_days: ReminderDays
     payment_horizon_days: Annotated[int, Field(ge=1, le=366)]
-    logo_dev_token: Annotated[NonBlankText, Field(max_length=200)] | None
+    logo_dev_token: Annotated[TrimmedText, Field(max_length=200)] | None
     locale: Literal["en", "es"] | None
     theme: Literal["system", "light", "dark"]
     font_size: Literal["sm", "md", "lg"]

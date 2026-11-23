@@ -17,6 +17,13 @@ TS = "2026-11-10T15:18:00.000Z"
 CATALOG_FILE = MIGRATIONS_DIR.parent / "catalog" / "catalog.json"
 SEED = 5
 BLANKS = ["", " ", "\t\n\r", "\u00a0", "\u2028\u3000\u205f"]
+UNTRIMMED = [
+    "",
+    " \t\n\r",
+    *(f"{edge}Spotify" for edge in " \t\n\r"),
+    *(f"Spotify{edge}" for edge in " \t\n\r"),
+]
+TRIMMED = ["Spotify Family", "Shared\nwith family", "Line\r\nbreak", "\u00a0", "\u3000Gym\u2028"]
 
 type Row = dict[str, Any]
 
@@ -421,14 +428,31 @@ INVALID_ROWS: list[Any] = [
             lambda _s, c=column, v=value: subscription_row(**{c: v}),
             id=f"{column}-blank-{value!r}",
         )
-        for column in ["plan_name", "payment_method", "website", "cancel_url", "notes"]
+        for column in ["website", "cancel_url"]
         for value in BLANKS
     ),
     *(
         pytest.param(
-            "payment", lambda s, v=value: payment_row(s, note=v), id=f"note-blank-{value!r}"
+            "subscription",
+            lambda _s, c=column, v=value: subscription_row(**{c: v}),
+            id=f"{column}-untrimmed-{value!r}",
         )
-        for value in BLANKS
+        for column in ["name", "plan_name", "payment_method", "notes"]
+        for value in UNTRIMMED
+    ),
+    *(
+        pytest.param(
+            "payment", lambda s, v=value: payment_row(s, note=v), id=f"note-untrimmed-{value!r}"
+        )
+        for value in UNTRIMMED
+    ),
+    *(
+        pytest.param(
+            "catalog_service",
+            lambda _s, v=value: catalog_row(name=v),
+            id=f"cat-name-untrimmed-{value!r}",
+        )
+        for value in UNTRIMMED
     ),
     *(
         pytest.param(
@@ -447,6 +471,33 @@ def test_invalid_values_are_rejected(
 ) -> None:
     with pytest.raises(sqlite3.IntegrityError):
         insert(migrated_db, table, make_row(subscription_id))
+
+
+@pytest.mark.parametrize("value", TRIMMED)
+def test_trimmed_text_is_stored_exactly_as_given(
+    migrated_db: sqlite3.Connection, value: str
+) -> None:
+    catalog_id = insert(migrated_db, "catalog_service", catalog_row(name=value))
+    sub_id = insert(
+        migrated_db,
+        "subscription",
+        subscription_row(name=value, plan_name=value, payment_method=value, notes=value),
+    )
+    payment_id = insert(migrated_db, "payment", payment_row(sub_id, note=value))
+    migrated_db.execute("UPDATE setting SET value = ? WHERE key = 'logo_dev_token'", (value,))
+
+    assert migrated_db.execute(
+        "SELECT name FROM catalog_service WHERE id = ?", (catalog_id,)
+    ).fetchone() == (value,)
+    assert migrated_db.execute(
+        "SELECT name, plan_name, payment_method, notes FROM subscription WHERE id = ?", (sub_id,)
+    ).fetchone() == (value, value, value, value)
+    assert migrated_db.execute(
+        "SELECT note FROM payment WHERE id = ?", (payment_id,)
+    ).fetchone() == (value,)
+    assert migrated_db.execute(
+        "SELECT value FROM setting WHERE key = 'logo_dev_token'"
+    ).fetchone() == (value,)
 
 
 def test_br_28_a_subscription_becomes_or_stays_a_trial_only_with_a_trial_end_date(
@@ -483,9 +534,7 @@ def test_br_28_a_subscription_becomes_or_stays_a_trial_only_with_a_trial_end_dat
         ("payment_horizon_days", "367"),
         ("failed_attempts", ""),
         ("passcode_hash", "hunter22"),
-        ("logo_dev_token", ""),
-        ("logo_dev_token", " \t\n"),
-        ("logo_dev_token", "\u00a0\u3000"),
+        *(("logo_dev_token", value) for value in UNTRIMMED),
         ("last_scheduler_run", "2026-11-10T15:18:00Z"),
         ("retry_after", "2026-11-10"),
         ("home_time_zone", ""),
@@ -1011,6 +1060,178 @@ def test_v9_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
 
         assert count(db, "payment") == 1
         assert db.execute("SELECT notes FROM subscription").fetchall() == [("",)]
+    finally:
+        db.close()
+
+
+def test_v10_trims_space_tab_and_line_breaks_from_both_ends_of_text(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=9)
+        plans = [
+            {
+                "plan": " Monthly\t",
+                "price_cents": 999,
+                "interval_count": 1,
+                "interval_unit": "month",
+            },
+            {"plan": "Yearly", "price_cents": None, "interval_count": 1, "interval_unit": "year"},
+            {
+                "plan": "Two words\r\n",
+                "price_cents": 0,
+                "interval_count": 2,
+                "interval_unit": "week",
+            },
+        ]
+        padded_catalog = insert(
+            db, "catalog_service", catalog_row(name="\n Gym ", default_plans=json.dumps(plans))
+        )
+        kept_catalog = insert(db, "catalog_service", catalog_row(name="Netflix"))
+        padded_sub = insert(
+            db,
+            "subscription",
+            subscription_row(
+                catalog_service_id=padded_catalog,
+                name="\tSpotify ",
+                plan_name=" Family\r",
+                payment_method="\r\nVisa",
+                website="https://spotify.com",
+                notes="  Shared\nwith family\n",
+            ),
+        )
+        kept_sub = insert(
+            db,
+            "subscription",
+            subscription_row(
+                catalog_service_id=kept_catalog,
+                name="Netflix",
+                plan_name="\u00a0Premium\u00a0",
+                payment_method="Visa ··4417",
+                notes="Line one\nline two",
+            ),
+        )
+        insert(db, "price_history", price_row(padded_sub))
+        padded_payment = insert(db, "payment", payment_row(padded_sub, note=" late "))
+        kept_payment = insert(db, "payment", paid_payment_row(kept_sub, note="On\u00a0time"))
+        insert(db, "notification", notification_row(padded_sub, payment_id=padded_payment))
+        db.execute("UPDATE setting SET value = ' pk_abc\n' WHERE key = 'logo_dev_token'")
+        text = ["name", "plan_name", "payment_method", "notes"]
+        sub_others = [
+            row[1] for row in db.execute("PRAGMA table_info(subscription)") if row[1] not in text
+        ]
+        select_subs = f"SELECT {', '.join(sub_others)} FROM subscription ORDER BY id"  # noqa: S608
+        subs_before = db.execute(select_subs).fetchall()
+        kept_catalog_before = db.execute(
+            "SELECT * FROM catalog_service WHERE id = ?", (kept_catalog,)
+        ).fetchall()
+        settings_before = db.execute(
+            "SELECT * FROM setting WHERE key <> 'logo_dev_token' ORDER BY id"
+        ).fetchall()
+
+        apply_migrations(db, after=9, up_to=10)
+
+        name, stored_plans = db.execute(
+            "SELECT name, default_plans FROM catalog_service WHERE id = ?", (padded_catalog,)
+        ).fetchone()
+        assert name == "Gym"
+        assert stored_plans == (
+            '[{"plan":"Monthly","price_cents":999,"interval_count":1,"interval_unit":"month"},'
+            '{"plan":"Yearly","price_cents":null,"interval_count":1,"interval_unit":"year"},'
+            '{"plan":"Two words","price_cents":0,"interval_count":2,"interval_unit":"week"}]'
+        )
+        assert (
+            db.execute("SELECT * FROM catalog_service WHERE id = ?", (kept_catalog,)).fetchall()
+            == kept_catalog_before
+        )
+        assert db.execute(
+            f"SELECT {', '.join(text)} FROM subscription ORDER BY id"  # noqa: S608
+        ).fetchall() == [
+            ("Spotify", "Family", "Visa", "Shared\nwith family"),
+            ("Netflix", "\u00a0Premium\u00a0", "Visa ··4417", "Line one\nline two"),
+        ]
+        assert db.execute(select_subs).fetchall() == subs_before
+        assert db.execute("SELECT id, note FROM payment ORDER BY id").fetchall() == [
+            (padded_payment, "late"),
+            (kept_payment, "On\u00a0time"),
+        ]
+        assert db.execute("SELECT value FROM setting WHERE key = 'logo_dev_token'").fetchone() == (
+            "pk_abc",
+        )
+        assert (
+            db.execute("SELECT * FROM setting WHERE key <> 'logo_dev_token' ORDER BY id").fetchall()
+            == settings_before
+        )
+        assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert {
+            name
+            for (name,) in db.execute(
+                "SELECT name FROM sqlite_schema WHERE type = 'index'"
+                " AND tbl_name IN ('subscription', 'payment') AND sql IS NOT NULL"
+            )
+        } == {
+            "subscription_catalog_service_idx",
+            "payment_generated_unique_idx",
+            "payment_subscription_due_date_idx",
+            "payment_due_date_idx",
+            "payment_status_due_date_idx",
+        }
+
+        db.execute("DELETE FROM payment WHERE id = ?", (padded_payment,))
+        assert db.execute("SELECT payment_id FROM notification").fetchall() == [(None,)]
+        db.execute("DELETE FROM catalog_service WHERE id = ?", (padded_catalog,))
+        assert db.execute(
+            "SELECT catalog_service_id FROM subscription WHERE id = ?", (padded_sub,)
+        ).fetchall() == [(None,)]
+        db.execute("DELETE FROM subscription WHERE id = ?", (padded_sub,))
+        assert count(db, "price_history") == 0
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize(
+    ("table", "make_row"),
+    [
+        pytest.param("catalog_service", lambda: catalog_row(name=" \t "), id="catalog-name"),
+        pytest.param(
+            "catalog_service",
+            lambda: catalog_row(
+                default_plans='[{"plan":"\\r\\n","price_cents":null,"interval_count":1,'
+                '"interval_unit":"month"}]'
+            ),
+            id="plan-name",
+        ),
+        pytest.param("subscription", lambda: subscription_row(name="\n"), id="subscription-name"),
+    ],
+)
+def test_v10_stops_on_a_required_name_that_is_only_whitespace(
+    tmp_path: Path, table: str, make_row: Callable[[], Row]
+) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=9)
+        insert(db, table, make_row())
+        before = db.execute(f"SELECT * FROM {table} ORDER BY id").fetchall()  # noqa: S608
+
+        with pytest.raises(sqlite3.IntegrityError):
+            apply_migrations(db, after=9, up_to=10)
+
+        assert db.execute(f"SELECT * FROM {table} ORDER BY id").fetchall() == before  # noqa: S608
+    finally:
+        db.close()
+
+
+def test_v10_aborts_when_foreign_keys_are_on(tmp_path: Path) -> None:
+    db = connect(tmp_path / "subs.db")
+    try:
+        apply_migrations(db, up_to=9)
+        sub_id = insert(db, "subscription", subscription_row(notes=" padded "))
+        insert(db, "payment", payment_row(sub_id))
+
+        with pytest.raises(sqlite3.IntegrityError):
+            apply_migrations(db, after=9, up_to=10, foreign_keys=True)
+
+        assert count(db, "payment") == 1
+        assert db.execute("SELECT notes FROM subscription").fetchall() == [(" padded ",)]
     finally:
         db.close()
 

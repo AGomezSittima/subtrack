@@ -8,6 +8,7 @@ import {
 
 import { healthQueryOptions } from "@/features/health/api/use-health";
 import { apiClient } from "@/lib/api/client";
+import { optionalText } from "@/lib/text/optional-text";
 import type { DisplayTimeZone } from "@/lib/time/display-time-zone";
 
 type SettingsDto = components["schemas"]["Settings"];
@@ -55,7 +56,7 @@ function toDto(settings: Settings): SettingsDto {
     yearly_reminder_days: settings.yearlyReminderDays,
     ending_reminder_days: settings.endingReminderDays,
     payment_horizon_days: settings.paymentHorizonDays,
-    logo_dev_token: settings.logoDevToken,
+    logo_dev_token: optionalText(settings.logoDevToken),
     locale: settings.locale,
     theme: settings.theme,
     font_size: settings.fontSize,

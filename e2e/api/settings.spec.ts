@@ -142,13 +142,35 @@ const zoneIssues: [string, Record<string, unknown>, ValidationIssue[]][] = [
     "an empty zone name",
     { home_time_zone: "", display_time_zone: "" },
     [
-      { location: "body", pointer: "/display_time_zone", code: "pattern" },
-      { location: "body", pointer: "/home_time_zone", code: "pattern" },
+      {
+        location: "body",
+        pointer: "/display_time_zone",
+        code: "min_length",
+        params: { min_length: 1 },
+      },
+      {
+        location: "body",
+        pointer: "/home_time_zone",
+        code: "min_length",
+        params: { min_length: 1 },
+      },
     ],
   ],
   [
     "a zone name that is too long",
     { home_time_zone: `Europe/${"A".repeat(58)}` },
+    [
+      {
+        location: "body",
+        pointer: "/home_time_zone",
+        code: "max_length",
+        params: { max_length: 64 },
+      },
+    ],
+  ],
+  [
+    "a zone name that is too long and malformed",
+    { home_time_zone: "+".repeat(65) },
     [
       {
         location: "body",
@@ -174,23 +196,6 @@ for (const [name, change, issues] of zoneIssues) {
     expect(await expectProblem(response, "validation-error", 422)).toEqual(
       issues,
     );
-    const { data } = await api.GET("/settings");
-    expect(data).toEqual(defaultSettings);
-  });
-}
-
-for (const token of ["", " ", "\t\n", "\u00a0\u3000"]) {
-  test(`settings reject the blank logo token ${JSON.stringify(token)}`, async ({
-    api,
-    request,
-  }) => {
-    const response = await request.put(SETTINGS, {
-      data: { ...defaultSettings, logo_dev_token: token },
-    });
-
-    expect(await expectProblem(response, "validation-error", 422)).toEqual([
-      { location: "body", pointer: "/logo_dev_token", code: "pattern" },
-    ]);
     const { data } = await api.GET("/settings");
     expect(data).toEqual(defaultSettings);
   });

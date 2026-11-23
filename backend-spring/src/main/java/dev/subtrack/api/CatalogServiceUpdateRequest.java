@@ -19,6 +19,7 @@ final class CatalogServiceUpdateRequest {
   @JsonSetter(nulls = Nulls.FAIL)
   @MinCodePoints(1)
   @MaxCodePoints(200)
+  @TrimmedText
   private @Nullable String name;
 
   @JsonProperty

@@ -1,6 +1,6 @@
 # 0009. Null follows the device; optional text is null or non-blank
 
-Date: 2026-11-23 · Status: Accepted · Amends [0008](0008-configurable-time-zones.md)
+Date: 2026-11-23 · Status: Accepted, amended by [0010](0010-trimmed-text.md) · Amends [0008](0008-configurable-time-zones.md)
 
 ## Context
 
