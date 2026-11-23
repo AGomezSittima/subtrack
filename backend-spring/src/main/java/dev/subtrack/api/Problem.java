@@ -13,10 +13,6 @@ public record Problem(
   public static Problem of(
       ProblemType type, @Nullable String detail, List<ValidationIssue> errors) {
     return new Problem(
-        type.uri(),
-        type.title(),
-        type.status(),
-        detail,
-        errors.stream().sorted(ValidationIssue.ORDER).toList());
+        type.uri(), type.title(), type.status(), detail, ValidationIssue.onePerField(errors));
   }
 }

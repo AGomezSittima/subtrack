@@ -42,7 +42,7 @@ class ProblemHandler extends ResponseEntityExceptionHandler {
           "NotNull", new ConstraintIssue(IssueCode.REQUIRED, null),
           "ApiTimestamp", new ConstraintIssue(IssueCode.FORMAT, null),
           "Pattern", new ConstraintIssue(IssueCode.PATTERN, null),
-          "NonBlankText", new ConstraintIssue(IssueCode.PATTERN, null),
+          "TrimmedText", new ConstraintIssue(IssueCode.PATTERN, null),
           "OneOf", new ConstraintIssue(IssueCode.ENUM, null),
           "Min", new ConstraintIssue(IssueCode.MINIMUM, "value"),
           "Max", new ConstraintIssue(IssueCode.MAXIMUM, "value"),

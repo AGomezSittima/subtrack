@@ -37,7 +37,7 @@ final class SettingsRequest {
   @JsonSetter(nulls = Nulls.FAIL)
   @NotNull @Min(1) @Max(366) private @Nullable BigInteger paymentHorizonDays;
 
-  @JsonProperty @NotNull private @Nullable Optional<@MaxCodePoints(200) @NonBlankText(maxCodePoints = 200) String>
+  @JsonProperty @NotNull private @Nullable Optional<@MinCodePoints(1) @MaxCodePoints(200) @TrimmedText String>
       logoDevToken;
 
   @JsonProperty @NotNull private @Nullable Optional<@OneOf(CodeSet.LOCALE) String> locale;
@@ -67,11 +67,13 @@ final class SettingsRequest {
   private @Nullable String lockPolicy;
 
   @JsonProperty @NotNull private @Nullable Optional<
-          @Pattern(regexp = TimeZoneNameValidator.SHAPE) @MaxCodePoints(TimeZoneNameValidator.MAX_LENGTH) @TimeZoneName String>
+          @Pattern(regexp = TimeZoneNameValidator.SHAPE) @MinCodePoints(1)
+          @MaxCodePoints(TimeZoneNameValidator.MAX_LENGTH) @TimeZoneName String>
       homeTimeZone;
 
   @JsonProperty @NotNull private @Nullable Optional<
-          @Pattern(regexp = TimeZoneNameValidator.SHAPE) @MaxCodePoints(TimeZoneNameValidator.MAX_LENGTH) @TimeZoneName String>
+          @Pattern(regexp = TimeZoneNameValidator.SHAPE) @MinCodePoints(1)
+          @MaxCodePoints(TimeZoneNameValidator.MAX_LENGTH) @TimeZoneName String>
       displayTimeZone;
 
   UserSettings settings() {
