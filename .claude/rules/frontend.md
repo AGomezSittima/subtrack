@@ -30,6 +30,7 @@ Full detail: `docs/standards.md` (TypeScript and React, Tailwind CSS and shadcn/
 
 ## Dates and money
 - Temporal only. `Date` is allowed only inside `src/components/date-picker.tsx`.
+- Today comes from `useToday()` (`/health`), never the device clock. Format timestamps with `formatTimestamp` (display zone) and plain dates with `formatPlainDate` (no zone), both in `src/lib/time`.
 - Amounts are integer cents; format with `Intl.NumberFormat` (`style: 'currency', currency: 'EUR'`) for the active locale.
 
 ## Styling (Tailwind CSS 4 + shadcn tokens)

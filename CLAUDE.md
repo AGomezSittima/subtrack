@@ -62,7 +62,7 @@ If a recipe is missing, add it to the `justfile` rather than documenting a one-o
 
 - **Contract first.** API changes start in `contract/openapi.yaml`, then both backends and the frontend, ideally in one PR. Never let the two backends diverge; a behavior difference is a bug.
 - **Schema only via migrations.** New `V<n>__description.sql` in `db/migrations/`. Backends never create or alter tables (Spring `ddl-auto=validate`, no `create_all`).
-- **Dates.** Stored as ISO text: dates `YYYY-MM-DD`, timestamps UTC with milliseconds and `Z`. Billing dates are plain dates. In TypeScript use Temporal only, never `Date` (except inside `DatePicker`).
+- **Dates.** Stored as ISO text: dates `YYYY-MM-DD`, timestamps UTC with milliseconds and `Z`. Billing dates are plain dates and are never converted. "Today" comes from the backend (the date in the home time zone, via `/health` in the frontend); timestamps are shown in the display time zone. In TypeScript use Temporal only, never `Date` (except inside `DatePicker`).
 - **Money.** Integer cents everywhere. Never floats. Round derived values once, at the end (BR-22, BR-26).
 - **Time is injected.** No direct `now()` / `LocalDate.now()` / `Temporal.Now` outside the `clock` module.
 - **External services behind interfaces** we own (logo provider, API client, clock, repositories). No vendor types outside adapters.

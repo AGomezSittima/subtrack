@@ -60,7 +60,7 @@ Each concept uses the same kind of type in all three languages. Temporal was mod
 | --- | --- | --- | --- | --- |
 | Calendar date (billing, due, trial end) | `Temporal.PlainDate` | `datetime.date` | `LocalDate` | `2026-12-01` |
 | Exact moment (created\_at, read\_at) | `Temporal.Instant` | aware `datetime` in UTC | `Instant` | `2026-11-10T15:18:00Z` |
-| Moment shown to the user | `Temporal.ZonedDateTime` | `datetime` + `ZoneInfo` | `ZonedDateTime` | Europe/Madrid |
+| Moment shown to the user | `Temporal.ZonedDateTime` | `datetime` + `ZoneInfo` | `ZonedDateTime` | display time zone |
 | Interval | `Temporal.Duration` | `dateutil.relativedelta` | `Period` | 3 months |
 | Current time | injected `Clock` | injected `Clock` | `java.time.Clock` bean |  |
 | Money | `number` of integer cents | `int` cents | `long` cents | `1199` = 11,99 € |
@@ -69,7 +69,9 @@ Rules:
 
 - **No `Date` in TypeScript.** Use Temporal everywhere. Chrome 144+ and Firefox 139+ ship it natively, but Safari does not yet, so load a polyfill (`temporal-polyfill` or `@js-temporal/polyfill`) once at app entry.
 - Dates travel as ISO strings (`YYYY-MM-DD`, `…Z`) and are parsed into these types at the boundary, never passed around as strings.
-- Billing dates are always plain dates; time zones apply only to timestamps and display.
+- Billing dates are always plain dates; time zones apply only to timestamps and display. Plain dates are never converted to or from a time zone, anywhere.
+- "Today" comes from the backend: the date in the home time zone, from `HomeZone` in the backends and `useToday()` (`/health`) in the frontend. The frontend never derives today from the device clock.
+- Timestamps are shown in the display time zone (`formatTimestamp` in `src/lib/time`); plain dates with `formatPlainDate`, which takes no zone.
 - Money is never a float. Format only at the edge with `Intl.NumberFormat` (`style: 'currency', currency: 'EUR'`).
 - In the database, dates are `YYYY-MM-DD` text and timestamps are UTC ISO text with milliseconds and `Z`. Never rely on a driver's default date storage.
 
