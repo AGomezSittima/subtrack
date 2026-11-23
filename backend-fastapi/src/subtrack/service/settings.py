@@ -21,7 +21,7 @@ class UserSettings:
     week_start: int
     lock_policy: str
     home_time_zone: str | None
-    display_time_zone: str
+    display_time_zone: str | None
 
 
 _USER_KEYS = (
@@ -86,7 +86,7 @@ def _settings(values: dict[SettingKey, str | None]) -> UserSettings:
         week_start=integer(SettingKey.WEEK_START),
         lock_policy=text(SettingKey.LOCK_POLICY),
         home_time_zone=values[SettingKey.HOME_TIME_ZONE],
-        display_time_zone=text(SettingKey.DISPLAY_TIME_ZONE),
+        display_time_zone=values[SettingKey.DISPLAY_TIME_ZONE],
     )
 
 
