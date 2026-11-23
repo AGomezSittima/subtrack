@@ -5,7 +5,6 @@
 x-backend: &backend
   environment:
     DB_PATH: /data/subs.db
-    TZ: Europe/Madrid
   volumes:
     - subs-data:/data
   depends_on:

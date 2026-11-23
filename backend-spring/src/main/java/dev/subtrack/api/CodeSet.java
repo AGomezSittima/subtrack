@@ -16,7 +16,12 @@ public enum CodeSet {
           "news",
           "education",
           "other")),
-  INTERVAL_UNIT(Set.of("day", "week", "month", "year"));
+  INTERVAL_UNIT(Set.of("day", "week", "month", "year")),
+  LOCALE(Set.of("en", "es")),
+  THEME(Set.of("system", "light", "dark")),
+  FONT_SIZE(Set.of("sm", "md", "lg")),
+  REDUCED_MOTION(Set.of("system", "always")),
+  LOCK_POLICY(Set.of("on_open", "idle_5", "idle_15", "idle_30", "idle_60", "manual"));
 
   private final Set<String> codes;
 

@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -29,16 +29,6 @@ def test_a_pinned_instant_stays_until_pinned_again_or_unpinned() -> None:
 
     clock.unpin()
     assert clock.now() == FALLBACK_NOW
-
-
-def test_today_is_the_date_in_madrid() -> None:
-    clock = SettableClock(FixedClock())
-
-    clock.pin(datetime(2026, 3, 28, 23, 30, tzinfo=UTC))
-    assert clock.today() == date(2026, 3, 29)
-
-    clock.pin(datetime(2026, 7, 31, 21, 59, tzinfo=UTC))
-    assert clock.today() == date(2026, 7, 31)
 
 
 def test_a_naive_instant_is_refused() -> None:

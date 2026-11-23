@@ -38,4 +38,9 @@ public class SettingEntity {
   public Instant getUpdatedAt() {
     return updatedAt;
   }
+
+  public void setValue(@Nullable String value, Instant updatedAt) {
+    this.value = value;
+    this.updatedAt = updatedAt;
+  }
 }

@@ -120,6 +120,8 @@ IDs (FR-x) are meant to be referenced from tests and commits in both backends.
 - **FR-37** Reduced motion: follow the system (default), or always reduce.
 - **FR-38** First day of the week, used by date pickers and calendar views (default Monday).
 - **FR-39** Appearance settings apply immediately and are the same in any browser.
+- **FR-53** Home time zone, an IANA name such as Europe/Madrid. It decides which date is today for every business rule (BR-3). On first use it is set to the browser's time zone, and the app shows a notice saying so and pointing to settings. It can be changed at any time; changing it never changes stored dates.
+- **FR-54** Display time zone, used to show times of day (for example when a notification fired or the scheduler last ran). It follows the device (default) or is pinned to an IANA name. Calendar dates such as due dates look the same in every zone.
 
 ### Privacy lock
 
@@ -143,7 +145,7 @@ The information the system keeps, independent of how it is stored (the schema is
 | Price change | New price and the date it takes effect |
 | Payment | Due date, expected amount, paid amount and date, status (expected, paid, skipped, failed), origin (scheduled, backfill, manual), note |
 | Notification | Type, severity, related subscription or payment, message parameters (the text is rendered in the user's language), date it fired, read or unread |
-| Settings | Reminder defaults, payment horizon, logo service key, language, theme, font size, reduced motion, first day of week, passcode (stored only in a form that cannot be reversed), lock policy |
+| Settings | Reminder defaults, payment horizon, logo service key, language, theme, font size, reduced motion, first day of week, home time zone, display time zone, passcode (stored only in a form that cannot be reversed), lock policy |
 
 **Categories:** music, video, vpn, cloud, ai, software, domains, gaming, news, education, other.
 
@@ -161,7 +163,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 
 - **BR-1** The n-th billing date is always computed from the anchor date: `anchor + n × interval`, never from the previous billing date. This avoids drift (31st → 28th → 28th forever).
 - **BR-2** If the target month is shorter than the anchor day, clamp to the last day of that month.
-- **BR-3** All dates are local dates in Europe/Madrid; no times of day are stored for billing.
+- **BR-3** Billing dates (anchors, due dates, trial end, ends on, pause and resume dates) are plain calendar dates with no time of day or time zone, and are never converted. "Today" is the current date in the home time zone (FR-53). Every rule that compares with today uses it, as does the date a subscription was added: due, overdue, reminders, the payment horizon and catch-up. Until a home time zone is set, today is the date in UTC. Changing the home time zone recalculates nothing: stored dates stay as they are, and the new zone applies from the next request and scheduler run.
 
 | Anchor | Interval | Next dates | Rule |
 | --- | --- | --- | --- |
@@ -188,7 +190,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 
 ### Payment generation
 
-- **BR-6** For each active or trial subscription, create `expected` payments for every billing date on or after the day the subscription was added to the app (the date of its creation in Europe/Madrid), up to and including today + horizon. Earlier billing dates are generated only by a backfill (FR-27). Pausing, resuming and archiving narrow this further (BR-10, BR-27).
+- **BR-6** For each active or trial subscription, create `expected` payments for every billing date on or after the day the subscription was added to the app (the date of its creation in the home time zone, BR-3), up to and including today + horizon. Earlier billing dates are generated only by a backfill (FR-27). Pausing, resuming and archiving narrow this further (BR-10, BR-27).
 - **BR-7** Generation is idempotent: the unique key (subscription\_id, due\_date) means re-running it never duplicates.
 - **BR-8** `expected_cents` = the price-history entry in force on the due date.
 - **BR-9** A price change updates `expected_cents` on payments still `expected` with due\_date ≥ effective\_from. Paid, skipped and failed payments never change.
@@ -212,7 +214,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 ### Scheduler and catch-up
 
 - **BR-18** One job, run on backend startup and then every hour. Steps in order: activate ended trials, generate payments, auto-confirm, create notifications, store `last_scheduler_run`.
-- **BR-19** Catch-up: notifications are created for every trigger date from the date of `last_scheduler_run` to today, both inclusive, so reminders that fell while the containers were stopped still appear on the next start. On the first run, only today's triggers are created. A renewal, yearly renewal, trial-ending or ending trigger is skipped when its event date (due date, trial end date, ends\_on) is before today, or when its payment is no longer `expected`. An event today still fires. Overdue fires once, while the payment is still `expected`.
+- **BR-19** Catch-up: notifications are created for every trigger date from the date of `last_scheduler_run` in the home time zone to today, both inclusive, so reminders that fell while the containers were stopped still appear on the next start. On the first run, only today's triggers are created. A renewal, yearly renewal, trial-ending or ending trigger is skipped when its event date (due date, trial end date, ends\_on) is before today, or when its payment is no longer `expected`. An event today still fires. Overdue fires once, while the payment is still `expected`.
 - **BR-20** The job is safe to run any number of times (BR-7, BR-17), so a restart mid-run is harmless.
 
 ## Non-functional requirements
@@ -258,6 +260,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 | 2026-11-21 | Archived subscriptions | No generation, reminders or auto-confirm; future expected payments removed (FR-28, BR-27) |
 | 2026-11-21 | Trial end date | Required while in trial (BR-28) |
 | 2026-11-23 | Catalogue content and updates | 54 built-in services without prices, editable and hideable by the user; updates only add new services (FR-2, FR-47 to FR-52) |
+| 2026-11-23 | Time zones | "Today" from the backend in a home time zone; timestamps shown in a display time zone; no recalculation (BR-3, FR-53, FR-54) |
 | 2026-11-23 | Domain names | One subscription per domain, from the registrar's catalogue entry |
 
 **Open questions**

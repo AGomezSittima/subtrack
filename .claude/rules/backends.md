@@ -28,6 +28,7 @@ Full detail: `docs/sdd.md` (Backend design, Privacy lock, Date and timestamp sto
 
 ## Time and scheduling
 - Get the current date/time only from the injected `Clock` (Ruff `TID251` and Checkstyle enforce it). In test mode, `POST /admin/clock` sets it.
+- Today is always `HomeZone.today()` (the date in the home time zone, UTC while unset). Code that writes `home_time_zone` refreshes `HomeZone`.
 - The scheduler job is plain code in `scheduler`; the trigger (APScheduler / `@Scheduled`) only calls it. It runs at startup, hourly, and (test mode) on `POST /admin/run-scheduler`.
 
 ## Security

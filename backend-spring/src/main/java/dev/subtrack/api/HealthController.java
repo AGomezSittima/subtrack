@@ -18,6 +18,7 @@ class HealthController {
 
   @GetMapping("/health")
   HealthResponse health() {
-    return new HealthResponse("ok", "spring", properties.version(), health.lastSchedulerRun());
+    return new HealthResponse(
+        "ok", "spring", properties.version(), health.today(), health.lastSchedulerRun());
   }
 }

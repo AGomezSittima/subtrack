@@ -1,9 +1,14 @@
 import sqlite3
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
+from tests.support.app import pin_clock
+
 
 def test_health_reports_fastapi_backend(client: TestClient) -> None:
+    pin_clock(client, datetime(2026, 11, 23, 23, 30, tzinfo=UTC))
+
     response = client.get("/api/v1/health")
 
     assert response.status_code == 200
@@ -11,6 +16,7 @@ def test_health_reports_fastapi_backend(client: TestClient) -> None:
         "status": "ok",
         "backend": "fastapi",
         "version": "0.1.0",
+        "today": "2026-11-23",
         "last_scheduler_run": None,
     }
 

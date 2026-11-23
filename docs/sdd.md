@@ -107,7 +107,7 @@ services:
   api-fastapi:
     build: ./backend-fastapi
     profiles: [fastapi]
-    environment: { DB_PATH: /data/subs.db, TZ: Europe/Madrid }
+    environment: { DB_PATH: /data/subs.db }
     volumes: [subs-data:/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -117,7 +117,7 @@ services:
   api-spring:
     build: ./backend-spring
     profiles: [spring]
-    environment: { DB_PATH: /data/subs.db, TZ: Europe/Madrid }
+    environment: { DB_PATH: /data/subs.db }
     volumes: [subs-data:/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -243,6 +243,8 @@ Keys and defaults: `default_reminder_days` (3), `trial_reminder_days` (3), `year
 
 Also `ending_reminder_days` (7) and `locale` (`en` or `es`; null = follow the browser).
 
+Time zone keys (V6, [ADR 0008](adr/0008-configurable-time-zones.md)): `home_time_zone` (an IANA name; null = not set yet, and the backend uses UTC) and `display_time_zone` (`device` or an IANA name; default `device`). The checks allow only the shape of a zone name (letters, digits, `/`, `_`, `+`, `-`, at most 64 characters); the backends check the name against their zone database.
+
 Appearance and lock keys: `theme` (system, light, dark; default system), `font_size` (sm, md, lg; default md), `reduced_motion` (system, always; default system), `week_start` (1 = Monday … 7; default 1), `passcode_hash` (Argon2id in PHC string format; null = no passcode), `lock_policy` (on\_open, idle\_5, idle\_15, idle\_30, idle\_60, manual; default idle\_15), `failed_attempts` (0), `retry_after` (timestamp, null).
 
 ### session
@@ -275,6 +277,7 @@ Besides the unique constraints above (`catalog_service.builtin_key`, `price_hist
 - `V3__trial_end_date_and_resume_dates.sql` rebuilds `subscription` to add the trial check and the `resumed_on` and `unarchived_on` columns. SQLite can't add a table `CHECK` with `ALTER TABLE`, so it follows SQLite's documented rebuild: create the new table, copy, drop, rename, recreate the index. That procedure needs foreign keys off, or dropping the old table would cascade to `price_history` and `payment`. Flyway runs each migration in a transaction, where `PRAGMA foreign_keys = OFF` has no effect. But Flyway's sqlite-jdbc connection already leaves foreign keys off (checked with the pinned Flyway image), so the rebuild is safe. The migration starts by inserting `pragma_foreign_keys` into a temporary table whose `CHECK` requires 0, so it aborts before touching data if foreign keys are ever on. BEFORE INSERT/UPDATE triggers with `RAISE(ABORT, …)` would have avoided the rebuild, but they would keep the rule outside the table definition and wouldn't check existing rows. The test helper applies migrations with foreign keys off, like Flyway.
 - `V4__catalogue_ownership_and_categories.sql` rebuilds `catalog_service` (adds `builtin_key`, `hidden` and the timestamps, makes `domain` nullable, drops the unique name) and `subscription` (the `gaming`, `news` and `education` categories), with the same procedure and foreign-key guard as V3. Existing catalogue rows become user entries, timestamped with the migration time.
 - **Built-in catalogue.** `db/catalog/catalog.json` lists the built-ins (key, name, domain, category, plans without prices), validated against `db/catalog/catalog.schema.json`. `just catalog-migration` (`db/scripts/catalog-migration.ts`) applies the existing migrations to an in-memory database, and writes `V<next>__catalog_builtins.sql` with one `INSERT … ON CONFLICT (builtin_key) DO NOTHING` per key not installed yet, timestamped with the migration time and without ids. `V5__catalog_builtins.sql` is the first, with 54 services. The file only grows: `just lint` (`db/scripts/check-catalog.ts`) fails when the JSON is invalid, when one of its keys isn't installed by the migrations, when an installed key is gone from it, or when an entry differs from what its migration inserted ([ADR 0007](adr/0007-catalogue-ownership.md)). Both scripts use Node's built-in `node:sqlite`.
+- `V6__time_zone_settings.sql` rebuilds `setting` to add `home_time_zone` and `display_time_zone` to the key list and the value checks, copying the existing rows. No table references `setting`, so the foreign-key guard isn't needed.
 - `backend-fastapi/tests/integration/test_migrations.py` applies every migration to a fresh SQLite file (fixture `migrated_db` in `tests/conftest.py`, reused by repository tests) and checks the constraints.
 - Only the Flyway `migrate` container changes the schema. Spring runs with Flyway disabled and `ddl-auto=validate`; FastAPI never calls `create_all`. A mismatch fails at startup.
 - Every connection sets `PRAGMA foreign_keys = ON` (off by default in SQLite), `journal_mode = WAL` and a `busy_timeout` of 5 s. Each backend opens connections in one place: FastAPI `persistence/engine.py` (a SQLAlchemy `connect` event), Spring `persistence/DataSourceConfig` (sqlite-jdbc's `SQLiteConfig` under Hikari).
@@ -340,8 +343,8 @@ REST + JSON under `/api/v1`, written first in `contract/openapi.yaml`. Both back
 | POST | /admin/run-scheduler | Test mode only: run the scheduler job now; 404 otherwise |
 | GET | /export | `?format=json` or `csv` |
 | POST | /import | JSON from /export |
-| GET | /health | `{status, backend: "fastapi" or "spring", version, last_scheduler_run}` (`last_scheduler_run` is null until the job has run) |
-| POST | /admin/clock | Test mode only: `{now}` pins the clock to a timestamp (today is its date in Europe/Madrid); 404 otherwise |
+| GET | /health | `{status, backend: "fastapi" or "spring", version, today, last_scheduler_run}` (`today` is the current date in the home time zone; `last_scheduler_run` is null until the job has run) |
+| POST | /admin/clock | Test mode only: `{now}` pins the clock to a timestamp (today is its date in the home time zone); 404 otherwise |
 | POST | /subscriptions/{id}/archive | Archive (FR-28); /unarchive restores it; GET /subscriptions?archived=true lists them |
 | POST | /admin/reset | Test mode only: restore the database to its state right after migrations and unpin the clock; 404 otherwise |
 | GET | /auth/status | {passcode\_enabled, unlocked, lock\_policy, retry\_after}; no other data |
@@ -431,7 +434,9 @@ Both backends use the same four layers and the same module names, so code can be
 3. **Billing core**: pure functions with no I/O: billing dates and cost normalization (BR-1 to BR-5), allocation (BR-26), payment planning (BR-6 to BR-12, BR-27) and reminder planning (BR-13 to BR-17, BR-19, BR-23, BR-24). The shared test cases target this module directly.
 4. **Repository layer**: data access for the seven tables.
 
-Time is injected everywhere (a `java.time.Clock` bean in the Europe/Madrid zone in Java, a `Clock` with `now()` and `today()` in Python), so tests can pin "today" and the scheduler can be tested across months. Only the `clock` module reads the system time; Ruff (`TID251`) and Checkstyle enforce it.
+Time is injected everywhere (a UTC `java.time.Clock` bean in Java, a `Clock` with `now()` in Python), so tests can pin "today" and the scheduler can be tested across months. Only the `clock` module reads the system time; Ruff (`TID251`) and Checkstyle enforce it.
+
+**Home time zone.** "Today" is always `HomeZone.today()`: the date of the clock's instant in the home time zone, or in UTC while `home_time_zone` is null ([ADR 0008](adr/0008-configurable-time-zones.md)). `HomeZone` (in `clock`, one per backend) caches the zone, so reading today never hits the database. It is loaded at startup (FastAPI `build_container`; Spring `ApplicationStartedEvent`, before the startup scheduler run), set after a settings update commits, and reloaded after `POST /admin/reset`; any later code that writes the setting (import) must refresh it too. FastAPI never loads it inside a request: the pool has one connection, so a second transaction would wait on the first. Zone names are validated against each backend's own database: FastAPI loads zones only from the pinned `tzdata` package (`clock/zones.py`), never from the OS; Spring accepts only `ZoneId.getAvailableZoneIds()` (`clock/TimeZones`), so offsets such as `+01:00` or `GMT+1` are rejected. An unknown name is a 422 `invalid` issue. Changing the home zone recalculates nothing.
 
 ### Billing core
 
@@ -462,7 +467,8 @@ The plumbing every slice uses, split the same way in both backends:
 | ISO text and column types | `persistence/isotext.py`, `persistence/types.py` | `persistence/IsoText`, `IsoDateConverter`, `UtcTimestampConverter` |
 | Rows | `persistence/models.py` (`SettingRow`, `SessionRow`) | `persistence/SettingEntity`, `SessionEntity` |
 | Repositories | `repository/settings.py`, `sessions.py`, `template.py`, `transaction.py` | `repository/SettingRepository`, `SessionRepository`, `TemplateRepository` |
-| Clock | `clock/clock.py`, `system.py`, `settable.py` | `clock/ClockConfig`, `SettableClock`, `AppZone` |
+| Clock and home zone | `clock/clock.py`, `system.py`, `settable.py`, `home_zone.py`, `zones.py` | `clock/ClockConfig`, `SettableClock`, `HomeZone`, `TimeZones` |
+| Settings | `api/settings.py`, `service/settings.py` | `api/SettingsController`, `SettingsRequest`, `SettingsResponse`, `service/SettingsService`, `UserSettings` |
 | Problem JSON | `api/problems.py`, `api/errors.py` | `api/ProblemType`, `Problem`, `ProblemHandler`, `ProblemErrorController` |
 | Test-mode endpoints | `api/admin.py`, `service/admin.py` | `api/AdminController`, `service/AdminService` |
 | Lock | `security/lock.py`, `middleware.py`, `tokens.py` | `security/LockEnforcer`, `SecurityConfig`, `LockAuthorizationManager`, `SessionTokens` |
@@ -489,7 +495,7 @@ The plumbing every slice uses, split the same way in both backends:
 The scheduler job contains no business rules. It loads data, calls the pure planning functions of the billing core, and saves what they return. The same planners serve every use case that changes payments, so the rules exist in one place per backend and are pinned by the shared cases.
 
 - Runs once at startup, then every hour, and in test mode on `POST /admin/run-scheduler`.
-- **Load.** Today comes from the injected clock, in Europe/Madrid. The job reads the settings and `last_scheduler_run`.
+- **Load.** Today comes from `HomeZone`, the injected clock's date in the home time zone. The job reads the settings and `last_scheduler_run`; the date of `last_scheduler_run` and a subscription's creation date are their timestamps' dates in the home time zone.
 - **Payment planning**, one transaction per subscription. The job loads the subscription, its price history and its payments, then calls `plan_payments(today, settings, subscription, price_history, payments, backfill=false)`. The planner returns a `PaymentPlan`: the new status, the full set of payments afterwards (new ones have no id and are the inserts), `updated_ids` and `deleted_ids`. Its changes are worked out in BR-18 order: activate an ended trial (BR-12), remove payments that a pause, cancellation or archive cuts off (BR-10, BR-27), reprice (BR-9), generate up to the horizon (BR-6 to BR-8), auto-confirm (BR-11). The job saves exactly that.
 - **Reminder planning**, one transaction. The job loads the subscriptions, their payments and the existing dedupe keys, then calls `plan_reminders(last_run_date, today, settings, subscriptions, payments, existing_dedupe_keys)` (BR-13 to BR-17, BR-19, BR-23, BR-24, BR-27). It inserts the returned notifications with `INSERT … ON CONFLICT DO NOTHING`.
 - **Finish.** It stores `last_scheduler_run`.
@@ -549,7 +555,7 @@ A single-page app built with React + Vite + TypeScript, compiled to static files
 | Charts | Recharts |
 | Forms | TanStack Form + Zod (Standard Schema, no adapter) |
 | Notifications | Unread count polled every 60 s; no websockets needed for one local user |
-| Dates and times | Temporal, with a polyfill loaded at entry for Safari |
+| Dates and times | Temporal, with a polyfill loaded at entry for Safari; "today" from `/health`; helpers in `src/lib/time` |
 | UI components | shadcn/ui on Base UI in src/components/ui; Field with TanStack Form; data table with TanStack Table; charts via shadcn chart components (Recharts) |
 | Theme | Custom palette, font and radius as shadcn tokens in src/styles/global.css (:root + @theme inline) |
 | Icons | Lucide (shadcn default) |
@@ -576,6 +582,14 @@ A single-page app built with React + Vite + TypeScript, compiled to static files
 **Sensitive data warning (FR-46).** A frontend-only check on the payment method and notes fields: a run of 13 to 19 digits (spaces or dashes allowed) that passes the Luhn checksum, or an IBAN pattern, shows a non-blocking warning under the field. The backends don't validate it.
 
 The footer shows which backend is answering, from `/health`.
+
+**Dates and time zones** ([ADR 0008](adr/0008-configurable-time-zones.md)). Everything date-related goes through `src/lib/time/`, the frontend's clock module (the only place ESLint allows `Temporal.Now`):
+
+- `useToday()` returns today as a `Temporal.PlainDate` from `/health`, refetched every 60 s and when the window regains focus. Every date-based decision (due today, overdue, date-picker limits) uses it; the frontend never derives today from the device clock.
+- `formatTimestamp(instant, displayZone, locale)` shows a UTC timestamp in the display time zone (`device` resolves to `deviceTimeZone()`).
+- `formatPlainDate(date, locale)` formats a plain date with no time zone at all, so a due date never shifts.
+
+**Home time zone on first load.** When `GET /settings` returns `home_time_zone: null`, the root layout saves the device's zone with `PUT /settings` once and shows a dismissible notice ("Home time zone set to …; you can change it in settings"). If the backend rejects the device's zone, it stays unset and no notice appears. The settings page itself comes with the settings slice.
 
 ### Logos
 
@@ -613,7 +627,7 @@ Testing priority is **end to end > integration > unit**, on a base of static ana
 | Integration (API) | second | One HTTP suite written once in TypeScript against `/api/v1`, run against each backend on a fresh database; covers every BR table through the API. Plus contract checks against `openapi.yaml` | Playwright request fixture, Schemathesis |
 | Unit | least | Billing core from every shared JSON case file (dates, costs, allocation, payment and reminder planning), each case its own parameterized test named by id and rules; a few hooks or components with real logic | pytest, JUnit 5, Vitest |
 
-**Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{now}`, a UTC timestamp; "today" is its date in Europe/Madrid, and the time of day drives idle-lock tests). The settable clock follows the system clock until it is pinned. Tests set the clock, call `POST /admin/run-scheduler`, and check payments and notifications. All three test endpoints return 404 outside test mode.
+**Controlling time in tests.** With `SUBTRACK_TEST_MODE=true`, each backend replaces its system clock with a settable one and exposes `POST /admin/clock` (`{now}`, a UTC timestamp; "today" is its date in the home time zone, UTC right after a reset, and the time of day drives idle-lock tests). The settable clock follows the system clock until it is pinned. Tests set the clock, call `POST /admin/run-scheduler`, and check payments and notifications. All three test endpoints return 404 outside test mode.
 
 **Fresh database.** `POST /admin/reset` returns the database to its state right after migrations, so the migrations stay the only source of seeded data (default settings, catalogue):
 

@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
@@ -15,6 +16,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     backend: Literal["fastapi", "spring"]
     version: str
+    today: date
     last_scheduler_run: ApiTimestamp | None
 
 
@@ -30,5 +32,6 @@ def get_health(
         status="ok",
         backend="fastapi",
         version=config.version,
+        today=health.today(),
         last_scheduler_run=health.last_scheduler_run(),
     )

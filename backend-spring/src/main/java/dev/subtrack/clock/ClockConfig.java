@@ -14,12 +14,12 @@ public class ClockConfig {
       havingValue = false,
       matchIfMissing = true)
   Clock systemClock() {
-    return Clock.system(AppZone.ZONE);
+    return Clock.systemUTC();
   }
 
   @Bean
   @ConditionalOnBooleanProperty("subtrack.test-mode")
   SettableClock settableClock() {
-    return new SettableClock(Clock.system(AppZone.ZONE));
+    return new SettableClock(Clock.systemUTC());
   }
 }

@@ -10,6 +10,7 @@ export type Backend = HealthDto["backend"];
 export interface Health {
   backend: Backend;
   version: string;
+  today: Temporal.PlainDate;
   lastSchedulerRun: Temporal.Instant | null;
 }
 
@@ -17,6 +18,7 @@ function toHealth(dto: HealthDto): Health {
   return {
     backend: dto.backend,
     version: dto.version,
+    today: Temporal.PlainDate.from(dto.today),
     lastSchedulerRun:
       dto.last_scheduler_run === null
         ? null
