@@ -16,6 +16,8 @@ exclude-operation-id = [
   "createCatalogService",
   "updateCatalogService",
   "deleteCatalogService",
+  "getSettings",
+  "updateSettings",
 ]
 enabled = false
 
@@ -23,3 +25,8 @@ enabled = false
 [[operations]]
 include-operation-id = ["createCatalogService", "updateCatalogService"]
 checks.positive_data_acceptance.expected-statuses = ["2xx", "404", "422"]
+
+# A zone name can match the pattern and still be unknown to the zone database (422 invalid).
+[[operations]]
+include-operation-id = ["updateSettings"]
+checks.positive_data_acceptance.expected-statuses = ["2xx", "422"]
