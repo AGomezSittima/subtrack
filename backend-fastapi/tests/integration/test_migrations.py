@@ -190,6 +190,8 @@ def test_settings_start_with_the_documented_defaults(migrated_db: sqlite3.Connec
         "lock_policy": "idle_15",
         "failed_attempts": "0",
         "retry_after": None,
+        "home_time_zone": None,
+        "display_time_zone": "device",
     }
 
 
@@ -452,6 +454,17 @@ def test_br_28_a_subscription_becomes_or_stays_a_trial_only_with_a_trial_end_dat
         ("logo_dev_token", ""),
         ("last_scheduler_run", "2026-11-10T15:18:00Z"),
         ("retry_after", "2026-11-10"),
+        ("home_time_zone", "device"),
+        ("home_time_zone", ""),
+        ("home_time_zone", "../etc/passwd"),
+        ("home_time_zone", "Europe/ Madrid"),
+        ("home_time_zone", "Europe//Madrid"),
+        ("home_time_zone", "Europe/"),
+        ("home_time_zone", "+01:00"),
+        ("home_time_zone", "A" * 65),
+        ("display_time_zone", None),
+        ("display_time_zone", ""),
+        ("display_time_zone", "Europe/Madrid "),
     ],
 )
 def test_invalid_setting_values_are_rejected(
@@ -459,6 +472,28 @@ def test_invalid_setting_values_are_rejected(
 ) -> None:
     with pytest.raises(sqlite3.IntegrityError):
         migrated_db.execute("UPDATE setting SET value = ? WHERE key = ?", (value, key))
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("home_time_zone", None),
+        ("home_time_zone", "Europe/Lisbon"),
+        ("home_time_zone", "America/Argentina/Buenos_Aires"),
+        ("home_time_zone", "Etc/GMT+5"),
+        ("home_time_zone", "America/Port-au-Prince"),
+        ("display_time_zone", "device"),
+        ("display_time_zone", "Etc/UTC"),
+    ],
+)
+def test_time_zone_settings_accept_zone_names(
+    migrated_db: sqlite3.Connection, key: str, value: str | None
+) -> None:
+    migrated_db.execute("UPDATE setting SET value = ? WHERE key = ?", (value, key))
+
+    assert migrated_db.execute("SELECT value FROM setting WHERE key = ?", (key,)).fetchone() == (
+        value,
+    )
 
 
 def test_unknown_and_duplicate_setting_keys_are_rejected(migrated_db: sqlite3.Connection) -> None:
