@@ -6,6 +6,7 @@ from fastapi import Request
 from sqlalchemy import Engine
 
 from subtrack.clock.clock import Clock
+from subtrack.clock.home_zone import HomeZone
 from subtrack.clock.settable import SettableClock
 from subtrack.clock.system import SystemClock
 from subtrack.config.settings import Settings
@@ -16,6 +17,7 @@ from subtrack.security.lock import LockEnforcer
 from subtrack.service.admin import AdminService
 from subtrack.service.catalog import CatalogService
 from subtrack.service.health import HealthService
+from subtrack.service.settings import SettingsService
 
 
 @dataclass(frozen=True)
@@ -25,6 +27,7 @@ class Container:
     clock: Clock
     health: HealthService
     catalog: CatalogService
+    settings_service: SettingsService
     lock: LockEnforcer
     admin: AdminService | None
 
@@ -33,18 +36,22 @@ def build_container(settings: Settings) -> Container:
     engine = create_sqlite_engine(settings.db_path)
     transaction = sql_transaction(create_session_factory(engine))
     clock: Clock = SystemClock()
-    admin = None
-    if settings.test_mode:
-        settable = SettableClock(clock)
-        template = SqlTemplateRepository(engine, _template_path(settings))
-        admin = AdminService(template, settable)
+    settable = SettableClock(clock) if settings.test_mode else None
+    if settable is not None:
         clock = settable
+    home_zone = HomeZone(clock, transaction)
+    home_zone.reload()
+    admin = None
+    if settable is not None:
+        template = SqlTemplateRepository(engine, _template_path(settings))
+        admin = AdminService(template, settable, home_zone)
     return Container(
         settings=settings,
         engine=engine,
         clock=clock,
-        health=HealthService(transaction),
+        health=HealthService(transaction, home_zone),
         catalog=CatalogService(transaction, clock),
+        settings_service=SettingsService(transaction, clock, home_zone),
         lock=LockEnforcer(transaction, clock),
         admin=admin,
     )
@@ -72,6 +79,10 @@ def health_service(request: Request) -> HealthService:
 
 def catalog_service(request: Request) -> CatalogService:
     return container(request).catalog
+
+
+def settings_service(request: Request) -> SettingsService:
+    return container(request).settings_service
 
 
 def admin_service(request: Request) -> AdminService:

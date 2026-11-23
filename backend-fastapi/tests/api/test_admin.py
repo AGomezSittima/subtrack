@@ -41,14 +41,12 @@ def test_test_mode_refuses_to_start_without_a_template(database: Path, tmp_path:
         build_client(database, tmp_path / "missing.db")
 
 
-def test_setting_the_clock_pins_now_and_today(client: TestClient) -> None:
+def test_setting_the_clock_pins_now(client: TestClient) -> None:
     response = client.post(CLOCK, json={"now": "2026-03-28T23:30:00.000Z"})
 
     assert response.status_code == 204
     assert response.content == b""
-    clock = container(client).clock
-    assert clock.now() == datetime(2026, 3, 28, 23, 30, tzinfo=UTC)
-    assert clock.today().isoformat() == "2026-03-29"
+    assert container(client).clock.now() == datetime(2026, 3, 28, 23, 30, tzinfo=UTC)
 
 
 def test_reset_restores_the_migrated_state_and_unpins_the_clock(
