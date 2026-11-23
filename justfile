@@ -34,6 +34,10 @@ down:
 gen:
     pnpm --filter @subtrack/contract run gen
 
+# Write the next migration with the built-ins in db/catalog/catalog.json that no migration inserts yet
+catalog-migration:
+    pnpm --filter @subtrack/db run catalog-migration
+
 # Lint, format-check and type-check every part
 lint: lint-js lint-fastapi lint-spring
 

@@ -1,0 +1,1361 @@
+{
+  "services": [
+    {
+      "key": "spotify",
+      "name": "Spotify",
+      "domain": "spotify.com",
+      "category": "music",
+      "plans": [
+        {
+          "plan": "Premium Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium Duo",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium Student",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "apple-music",
+      "name": "Apple Music",
+      "domain": "music.apple.com",
+      "category": "music",
+      "plans": [
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Student",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "youtube-premium",
+      "name": "YouTube Premium",
+      "domain": "youtube.com",
+      "category": "music",
+      "plans": [
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Student",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "youtube-music",
+      "name": "YouTube Music Premium",
+      "domain": "music.youtube.com",
+      "category": "music",
+      "plans": [
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Student",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "amazon-music-unlimited",
+      "name": "Amazon Music Unlimited",
+      "domain": "music.amazon.com",
+      "category": "music",
+      "plans": [
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "tidal",
+      "name": "Tidal",
+      "domain": "tidal.com",
+      "category": "music",
+      "plans": [
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Student",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "deezer",
+      "name": "Deezer",
+      "domain": "deezer.com",
+      "category": "music",
+      "plans": [
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Duo",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Student",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "netflix",
+      "name": "Netflix",
+      "domain": "netflix.com",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "Standard with ads",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Standard",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "disney-plus",
+      "name": "Disney+",
+      "domain": "disneyplus.com",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "Standard with ads",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Standard",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Standard",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "prime-video",
+      "name": "Prime Video",
+      "domain": "primevideo.com",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "Amazon Prime",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Amazon Prime",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "hbo-max",
+      "name": "HBO Max",
+      "domain": "hbomax.com",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "Basic with ads",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Standard",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Standard",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "apple-tv",
+      "name": "Apple TV",
+      "domain": "tv.apple.com",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "Apple TV",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "movistar-plus",
+      "name": "Movistar Plus+",
+      "domain": "movistarplus.es",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "Plan Libre: Cine y Series",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Plan Libre: con Deportes",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "dazn",
+      "name": "DAZN",
+      "domain": "dazn.com",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "DAZN GO",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Fútbol",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Motor",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Baloncesto",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "filmin",
+      "name": "Filmin",
+      "domain": "filmin.es",
+      "category": "video",
+      "plans": [
+        {
+          "plan": "Filmin",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Filmin",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "proton-vpn",
+      "name": "Proton VPN",
+      "domain": "protonvpn.com",
+      "category": "vpn",
+      "plans": [
+        {
+          "plan": "VPN Plus",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "VPN Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "nordvpn",
+      "name": "NordVPN",
+      "domain": "nordvpn.com",
+      "category": "vpn",
+      "plans": [
+        {
+          "plan": "Basic",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Basic",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Complete",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Complete",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Ultra",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Ultra",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "mullvad",
+      "name": "Mullvad VPN",
+      "domain": "mullvad.net",
+      "category": "vpn",
+      "plans": [
+        {
+          "plan": "Mullvad VPN",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "surfshark",
+      "name": "Surfshark",
+      "domain": "surfshark.com",
+      "category": "vpn",
+      "plans": [
+        {
+          "plan": "Starter",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Starter",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "One",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "One",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "One+",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "One+",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "expressvpn",
+      "name": "ExpressVPN",
+      "domain": "expressvpn.com",
+      "category": "vpn",
+      "plans": [
+        {
+          "plan": "Basic",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Basic",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Advanced",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Advanced",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Express Pro",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Express Pro",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "google-one",
+      "name": "Google One",
+      "domain": "one.google.com",
+      "category": "cloud",
+      "plans": [
+        {
+          "plan": "100 GB",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "100 GB",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "2 TB",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "2 TB",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "icloud-plus",
+      "name": "iCloud+",
+      "domain": "icloud.com",
+      "category": "cloud",
+      "plans": [
+        {
+          "plan": "50 GB",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "200 GB",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "2 TB",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "6 TB",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "12 TB",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "dropbox",
+      "name": "Dropbox",
+      "domain": "dropbox.com",
+      "category": "cloud",
+      "plans": [
+        {
+          "plan": "Plus",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Essentials",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Essentials",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "proton-drive",
+      "name": "Proton Drive",
+      "domain": "proton.me",
+      "category": "cloud",
+      "plans": [
+        {
+          "plan": "Drive Plus",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Drive Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "proton-unlimited",
+      "name": "Proton Unlimited",
+      "domain": "proton.me",
+      "category": "cloud",
+      "plans": [
+        {
+          "plan": "Unlimited",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Unlimited",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Duo",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Duo",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "claude",
+      "name": "Claude",
+      "domain": "claude.ai",
+      "category": "ai",
+      "plans": [
+        {
+          "plan": "Pro",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Pro",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Max 5x",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Max 20x",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "chatgpt",
+      "name": "ChatGPT",
+      "domain": "chatgpt.com",
+      "category": "ai",
+      "plans": [
+        {
+          "plan": "Go",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Plus",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Pro",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "gemini",
+      "name": "Google Gemini",
+      "domain": "gemini.google.com",
+      "category": "ai",
+      "plans": [
+        {
+          "plan": "Google AI Pro",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Google AI Ultra",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "perplexity",
+      "name": "Perplexity",
+      "domain": "perplexity.ai",
+      "category": "ai",
+      "plans": [
+        {
+          "plan": "Pro",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Pro",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Max",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Max",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "github-copilot",
+      "name": "GitHub Copilot",
+      "domain": "github.com",
+      "category": "ai",
+      "plans": [
+        {
+          "plan": "Pro",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Pro",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Pro+",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Pro+",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "bitwarden",
+      "name": "Bitwarden",
+      "domain": "bitwarden.com",
+      "category": "software",
+      "plans": [
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Families",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "1password",
+      "name": "1Password",
+      "domain": "1password.com",
+      "category": "software",
+      "plans": [
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Families",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Families",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "microsoft-365",
+      "name": "Microsoft 365",
+      "domain": "microsoft.com",
+      "category": "software",
+      "plans": [
+        {
+          "plan": "Personal",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Personal",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "adobe-creative-cloud",
+      "name": "Adobe Creative Cloud",
+      "domain": "adobe.com",
+      "category": "software",
+      "plans": [
+        {
+          "plan": "Photography",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Photography",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Creative Cloud Pro",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Creative Cloud Pro",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "jetbrains",
+      "name": "JetBrains",
+      "domain": "jetbrains.com",
+      "category": "software",
+      "plans": [
+        {
+          "plan": "All Products Pack",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "All Products Pack",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "IntelliJ IDEA Ultimate",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "IntelliJ IDEA Ultimate",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "notion",
+      "name": "Notion",
+      "domain": "notion.com",
+      "category": "software",
+      "plans": [
+        {
+          "plan": "Plus",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "cloudflare-registrar",
+      "name": "Cloudflare Registrar",
+      "domain": "cloudflare.com",
+      "category": "domains",
+      "plans": [
+        {
+          "plan": ".com",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "namecheap",
+      "name": "Namecheap",
+      "domain": "namecheap.com",
+      "category": "domains",
+      "plans": [
+        {
+          "plan": ".com",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "porkbun",
+      "name": "Porkbun",
+      "domain": "porkbun.com",
+      "category": "domains",
+      "plans": [
+        {
+          "plan": ".com",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "xbox-game-pass",
+      "name": "Xbox Game Pass",
+      "domain": "xbox.com",
+      "category": "gaming",
+      "plans": [
+        {
+          "plan": "Essential",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Ultimate",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "PC",
+          "interval_count": 1,
+          "interval_unit": "month"
+        }
+      ]
+    },
+    {
+      "key": "playstation-plus",
+      "name": "PlayStation Plus",
+      "domain": "playstation.com",
+      "category": "gaming",
+      "plans": [
+        {
+          "plan": "Essential",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Essential",
+          "interval_count": 3,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Essential",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Extra",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Extra",
+          "interval_count": 3,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Extra",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 3,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "nintendo-switch-online",
+      "name": "Nintendo Switch Online",
+      "domain": "nintendo.com",
+      "category": "gaming",
+      "plans": [
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Individual",
+          "interval_count": 3,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Individual",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Family",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Individual + Expansion Pack",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Family + Expansion Pack",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "udemy",
+      "name": "Udemy",
+      "domain": "udemy.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Personal Plan",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Personal Plan",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "coursera",
+      "name": "Coursera",
+      "domain": "coursera.org",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Coursera Plus",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Coursera Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "linkedin-learning",
+      "name": "LinkedIn Learning",
+      "domain": "linkedin.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "LinkedIn Learning",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "LinkedIn Learning",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "skillshare",
+      "name": "Skillshare",
+      "domain": "skillshare.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Skillshare",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Skillshare",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "masterclass",
+      "name": "MasterClass",
+      "domain": "masterclass.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Standard",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "domestika",
+      "name": "Domestika",
+      "domain": "domestika.org",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Domestika Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "platzi",
+      "name": "Platzi",
+      "domain": "platzi.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Basic",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Expert",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Expert Duo",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "duolingo",
+      "name": "Duolingo",
+      "domain": "duolingo.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Super",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Super",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Super Family",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Max",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Max",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "babbel",
+      "name": "Babbel",
+      "domain": "babbel.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Babbel",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Babbel",
+          "interval_count": 3,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Babbel",
+          "interval_count": 6,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Babbel",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "busuu",
+      "name": "Busuu",
+      "domain": "busuu.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        },
+        {
+          "plan": "Premium Plus",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium Plus",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "datacamp",
+      "name": "DataCamp",
+      "domain": "datacamp.com",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    },
+    {
+      "key": "brilliant",
+      "name": "Brilliant",
+      "domain": "brilliant.org",
+      "category": "education",
+      "plans": [
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "month"
+        },
+        {
+          "plan": "Premium",
+          "interval_count": 1,
+          "interval_unit": "year"
+        }
+      ]
+    }
+  ]
+}

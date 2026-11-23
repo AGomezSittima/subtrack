@@ -52,6 +52,7 @@ jobs:
               - "frontend/**"
               - "e2e/**"
               - "contract/**"
+              - "db/**"
               - "tooling/**"
               - "package.json"
               - "pnpm-lock.yaml"

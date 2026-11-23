@@ -2,6 +2,7 @@ packages:
   - frontend
   - e2e
   - contract
+  - db
 
 # Dependencies allowed to run install scripts (pnpm blocks all others).
 allowBuilds:

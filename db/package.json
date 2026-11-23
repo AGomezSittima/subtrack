@@ -1,0 +1,16 @@
+{
+  "name": "@subtrack/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Built-in catalogue schema, migration generator and consistency check",
+  "scripts": {
+    "catalog-migration": "node scripts/catalog-migration.ts",
+    "lint": "node scripts/check-catalog.ts && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "ajv": "8.20.0",
+    "typescript": "6.0.3"
+  }
+}
