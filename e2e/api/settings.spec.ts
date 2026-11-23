@@ -8,7 +8,7 @@ import {
 
 const SETTINGS = "/api/v1/settings";
 
-test("FR-53 FR-54 settings start with no home time zone and the device display zone", async ({
+test("FR-53 FR-54 settings start with no home or display time zone", async ({
   api,
 }) => {
   const { data, response } = await api.GET("/settings");
@@ -76,10 +76,10 @@ test("FR-54 the display time zone can follow the device again", async ({
 
   const saved = await saveSettings(api, {
     ...defaultSettings,
-    display_time_zone: "device",
+    display_time_zone: null,
   });
 
-  expect(saved.display_time_zone).toBe("device");
+  expect(saved.display_time_zone).toBeNull();
 });
 
 test("FR-53 the home time zone can be cleared, which falls back to UTC", async ({
@@ -110,9 +110,12 @@ const zoneIssues: [string, Record<string, unknown>, ValidationIssue[]][] = [
     [{ location: "body", pointer: "/display_time_zone", code: "invalid" }],
   ],
   [
-    "device as the home time zone",
-    { home_time_zone: "device" },
-    [{ location: "body", pointer: "/home_time_zone", code: "invalid" }],
+    "device as a time zone",
+    { home_time_zone: "device", display_time_zone: "device" },
+    [
+      { location: "body", pointer: "/display_time_zone", code: "invalid" },
+      { location: "body", pointer: "/home_time_zone", code: "invalid" },
+    ],
   ],
   [
     "an offset instead of a zone name",
@@ -156,11 +159,6 @@ const zoneIssues: [string, Record<string, unknown>, ValidationIssue[]][] = [
     ],
   ],
   [
-    "a null display time zone",
-    { display_time_zone: null },
-    [{ location: "body", pointer: "/display_time_zone", code: "type" }],
-  ],
-  [
     "a zone that is not a string",
     { home_time_zone: 1 },
     [{ location: "body", pointer: "/home_time_zone", code: "type" }],
@@ -180,6 +178,40 @@ for (const [name, change, issues] of zoneIssues) {
     expect(data).toEqual(defaultSettings);
   });
 }
+
+for (const token of ["", " ", "\t\n", "\u00a0\u3000"]) {
+  test(`settings reject the blank logo token ${JSON.stringify(token)}`, async ({
+    api,
+    request,
+  }) => {
+    const response = await request.put(SETTINGS, {
+      data: { ...defaultSettings, logo_dev_token: token },
+    });
+
+    expect(await expectProblem(response, "validation-error", 422)).toEqual([
+      { location: "body", pointer: "/logo_dev_token", code: "pattern" },
+    ]);
+    const { data } = await api.GET("/settings");
+    expect(data).toEqual(defaultSettings);
+  });
+}
+
+test("a logo token over 200 code points is too long, even when blank", async ({
+  request,
+}) => {
+  const response = await request.put(SETTINGS, {
+    data: { ...defaultSettings, logo_dev_token: " ".repeat(201) },
+  });
+
+  expect(await expectProblem(response, "validation-error", 422)).toEqual([
+    {
+      location: "body",
+      pointer: "/logo_dev_token",
+      code: "max_length",
+      params: { max_length: 200 },
+    },
+  ]);
+});
 
 test("settings reject a missing time zone and out-of-range values", async ({
   request,

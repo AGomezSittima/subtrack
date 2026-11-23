@@ -397,13 +397,13 @@ const createIssues: [string, object, ValidationIssue[]][] = [
         code: "maximum",
         params: { maximum: 366 },
       },
-      {
-        location: "body",
-        pointer: "/plans/0/plan",
-        code: "min_length",
-        params: { min_length: 1 },
-      },
+      { location: "body", pointer: "/plans/0/plan", code: "pattern" },
     ],
+  ],
+  [
+    "a plan name of only whitespace",
+    { ...valid, plans: [{ ...plan, plan: " \t\u00a0\u2028" }] },
+    [{ location: "body", pointer: "/plans/0/plan", code: "pattern" }],
   ],
   [
     "a plan whose name and interval repeat an earlier one",
