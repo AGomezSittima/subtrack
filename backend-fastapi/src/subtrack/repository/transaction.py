@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from subtrack.repository.catalog import CatalogRepository, SqlCatalogRepository
 from subtrack.repository.sessions import SessionRepository, SqlSessionRepository
 from subtrack.repository.settings import SettingRepository, SqlSettingRepository
 
@@ -12,6 +13,7 @@ from subtrack.repository.settings import SettingRepository, SqlSettingRepository
 class Repositories:
     settings: SettingRepository
     sessions: SessionRepository
+    catalog: CatalogRepository
 
 
 type Transaction = Callable[[], AbstractContextManager[Repositories]]
@@ -25,6 +27,7 @@ def sql_transaction(session_factory: sessionmaker[Session]) -> Transaction:
             yield Repositories(
                 settings=SqlSettingRepository(session),
                 sessions=SqlSessionRepository(session),
+                catalog=SqlCatalogRepository(session),
             )
 
     return transaction

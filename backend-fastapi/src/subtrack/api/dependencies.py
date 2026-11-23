@@ -14,6 +14,7 @@ from subtrack.repository.template import SqlTemplateRepository
 from subtrack.repository.transaction import sql_transaction
 from subtrack.security.lock import LockEnforcer
 from subtrack.service.admin import AdminService
+from subtrack.service.catalog import CatalogService
 from subtrack.service.health import HealthService
 
 
@@ -23,6 +24,7 @@ class Container:
     engine: Engine
     clock: Clock
     health: HealthService
+    catalog: CatalogService
     lock: LockEnforcer
     admin: AdminService | None
 
@@ -42,6 +44,7 @@ def build_container(settings: Settings) -> Container:
         engine=engine,
         clock=clock,
         health=HealthService(transaction),
+        catalog=CatalogService(transaction, clock),
         lock=LockEnforcer(transaction, clock),
         admin=admin,
     )
@@ -65,6 +68,10 @@ def settings(request: Request) -> Settings:
 
 def health_service(request: Request) -> HealthService:
     return container(request).health
+
+
+def catalog_service(request: Request) -> CatalogService:
+    return container(request).catalog
 
 
 def admin_service(request: Request) -> AdminService:
