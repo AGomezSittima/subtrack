@@ -19,6 +19,7 @@ When two principles pull apart, simplicity wins: this is a small single-user app
 | DRY | Each fact has one source: the OpenAPI contract for types, the SQL migrations for the schema, `@theme` tokens for design values. Duplicate code is merged on the third copy, not the second (rule of three). |
 | YAGNI | No hooks for features the SRS doesn't list. Out-of-scope items stay out until they move into scope. |
 | No sentinel values | A value never stands for something other than itself (no -1 for off, empty string for none, 0 for unlimited). Use an explicit field, null with one documented meaning, or an enum. |
+| Following the device | To follow the device or system: free-form value fields use null (e.g. locale, display_time_zone); enum fields use an explicit option such as system (e.g. theme). |
 
 ## Comments
 

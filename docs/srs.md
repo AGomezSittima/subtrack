@@ -121,7 +121,7 @@ IDs (FR-x) are meant to be referenced from tests and commits in both backends.
 - **FR-38** First day of the week, used by date pickers and calendar views (default Monday).
 - **FR-39** Appearance settings apply immediately and are the same in any browser.
 - **FR-53** Home time zone, an IANA name such as Europe/Madrid. It decides which date is today for every business rule (BR-3). On first use it is set to the browser's time zone, and the app shows a notice saying so and pointing to settings. It can be changed at any time; changing it never changes stored dates.
-- **FR-54** Display time zone, used to show times of day (for example when a notification fired or the scheduler last ran). It follows the device (default) or is pinned to an IANA name. Calendar dates such as due dates look the same in every zone.
+- **FR-54** Display time zone, used to show times of day (for example when a notification fired or the scheduler last ran). It follows the device while unset (the default) or is pinned to an IANA name. Calendar dates such as due dates look the same in every zone.
 
 ### Privacy lock
 
@@ -262,6 +262,7 @@ These rules are the shared core of both backends. Each one becomes a test case t
 | 2026-11-23 | Catalogue content and updates | 54 built-in services without prices, editable and hideable by the user; updates only add new services (FR-2, FR-47 to FR-52) |
 | 2026-11-23 | Time zones | "Today" from the backend in a home time zone; timestamps shown in a display time zone; no recalculation (BR-3, FR-53, FR-54) |
 | 2026-11-23 | Domain names | One subscription per domain, from the registrar's catalogue entry |
+| 2026-11-23 | Following the device; empty text | An unset display time zone follows the device; an empty or blank optional text field is stored as no value (FR-1, FR-54) |
 | 2026-11-23 | Turning reminders off | A per-subscription on/off switch, separate from the lead time, replaces the -1 value; the global lead times can't be turned off (FR-15, BR-13, BR-14) |
 
 **Open questions**
